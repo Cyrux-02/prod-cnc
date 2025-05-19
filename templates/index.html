@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ATBU Production Dashboard</title>
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        h2 {
+            text-align: center;
+            font-size: 32px;
+            margin-top: 20px;
+            color: #00e5ff;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #1e1e1e;
+            border-radius: 15px;
+            box-shadow: 0 0 15px #00e5ff44;
+        }
+
+        label {
+            font-size: 18px;
+            margin-top: 10px;
+            display: block;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            border: none;
+            border-radius: 8px;
+            background-color: #2c2c2c;
+            color: white;
+        }
+
+        button {
+            padding: 12px 20px;
+            font-size: 18px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+
+        .send-btn {
+            background-color: #4caf50;
+        }
+
+        .send-btn:hover {
+            background-color: #43a047;
+        }
+
+        .popup-btn {
+            background-color: #ff9800;
+        }
+
+        .popup-btn:hover {
+            background-color: #fb8c00;
+        }
+
+        .table-wrapper {
+            margin-top: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            border: 1px solid #555;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #333;
+        }
+
+        td {
+            background-color: #222;
+        }
+
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .flex-col {
+            flex-direction: column;
+        }
+        .dateFilter {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            align-content: center;
+            width: 100%;
+        }
+        
+
+        input[type="date"] {
+            color-scheme: dark;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.7);
+        }
+
+        .modal-content {
+            background-color: #1e1e1e;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 0 20px #00e5ff88;
+        }
+
+        .close {
+            color: white;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h2>ATBU Production - Order Form</h2>
+    <div class="container">
+        <form id="orderForm">
+            <label for="orderNumber">Order Number:</label>
+            <input type="text" id="orderNumber" required>
+
+            <label for="apnID">APN-ID:</label>
+            <input type="text" id="apnID" required>
+
+            <label for="specification">Specification:</label>
+            <select id="specification">
+                <option value="1">Main Part Serie Manufacturing</option>
+                <option value="2">Sub-Part Serie Manufacturing</option>
+                <option value="3">Main Part Proto Manufacturing</option>
+                <option value="4">Sub-Part Proto Manufacturing</option>
+            </select>
+
+            <label for="quantityProduced">Quantity Produced:</label>
+            <input type="number" id="quantityProduced" required>
+
+            <button type="button" class="send-btn" onclick="submitForm()">Send</button>
+        </form>
+
+        <div class="flex-between flex-col">
+            <div class="dateFilter" >
+                <label >Filter by Date:</label>
+                <div>
+                    <label for="filterDateFrom">From:</label>
+                    <input type="date" id="filterDateFrom">
+                </div>
+                <div>
+                    <label for="filterDateTo">To:</label>
+                    <input type="date" id="filterDateTo">
+                </div>
+                <button onclick="fetchFilteredHistory()">Filter</button>
+            </div>
+            <div>
+                <button onclick="fetchdata()">Show History</button>
+                <button class="popup-btn" onclick="document.getElementById('popupModal').style.display='block'">+ Add Planned Order</button>
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table id="historyTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Order Number</th>
+                        <th>APN-ID</th>
+                        <th>Specification</th>
+                        <th>Quantity Produced</th>
+                        <th>Date & Time</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal for Planned Order -->
+    <div id="popupModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="document.getElementById('popupModal').style.display='none'">&times;</span>
+            <h2>Add Planned Order</h2>
+            <form id="plannedOrderForm">
+                <label for="newOrderNumber">Order Number:</label>
+                <input type="text" id="newOrderNumber" required>
+
+                <label for="newApnID">APN-ID:</label>
+                <input type="text" id="newApnID" required>
+
+                <label for="newSpecification">Specification:</label>
+                <select id="newSpecification">
+                    <option value="1">Main Part Serie Manufacturing</option>
+                    <option value="2">Sub-Part Serie Manufacturing</option>
+                    <option value="3">Main Part Proto Manufacturing</option>
+                    <option value="4">Sub-Part Proto Manufacturing</option>
+                </select>
+
+                <label for="plannedQuantity">Planned Quantity:</label>
+                <input type="number" id="plannedQuantity" min="1" required>
+
+                <button type="button" class="send-btn" onclick="submitPlannedOrder()">Add to Library</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const url = "http://169.254.103.79:5000";
+        let history = [];
+
+        function sendData(data) {
+            fetch(`${url}/submit`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+                document.getElementById("orderForm").reset();
+            });
+        }
+
+        function submitForm() {
+            const data = {
+                orderNumber: document.getElementById("orderNumber").value.trim(),
+                apnID: document.getElementById("apnID").value.trim(),
+                specification: document.getElementById("specification").value,
+                quantityProduced: document.getElementById("quantityProduced").value.trim()
+            };
+            if (Object.values(data).some(val => !val)) {
+                return alert("Please fill in all fields.");
+            }
+            sendData(data);
+        }
+
+        function toggleTable() {
+            const table = document.getElementById("historyTable");
+            const body = document.getElementById("historyTableBody");
+            table.style.display = table.style.display === "none" ? "table" : "none";
+
+            if (table.style.display === "table") {
+                body.innerHTML = "";
+                history.forEach(record => {
+                    const row = `<tr>
+                        <td>${record.orderNumber}</td>
+                        <td>${record.apnID}</td>
+                        <td>${record.specification}</td>
+                        <td>${record.quantityProduced}</td>
+                        <td>${record.dateTime}</td>
+                    </tr>`;
+                    body.insertAdjacentHTML("beforeend", row);
+                });
+            }
+        }
+         function fetchdata() {
+            fetch(`${url}/history`)
+                .then(res => res.json())
+                .then(data => {history = data.data; toggleTable()})
+                .catch(console.error);
+        }
+
+        function fetchFilteredHistory() {
+            const dateFrom = document.getElementById("filterDateFrom").value;
+            const dateTo = document.getElementById("filterDateTo").value;
+            if (!dateTo && !dateFrom) return alert("Select a date to filter.");
+            fetch(`${url}/history?dateFrom=${dateFrom}&dateTo=${dateTo}`)
+                .then(res => res.json())
+                .then(data => {
+                    history = data.data;
+                    document.getElementById("historyTable").style.display = "table";
+                    const body = document.getElementById("historyTableBody");
+                    body.innerHTML = "";
+                    history.forEach(record => {
+                        const row = `<tr>
+                            <td>${record.orderNumber}</td>
+                            <td>${record.apnID}</td>
+                            <td>${record.specification}</td>
+                            <td>${record.quantityProduced}</td>
+                            <td>${record.dateTime}</td>
+                        </tr>`;
+                        body.insertAdjacentHTML("beforeend", row);
+                    });
+                })
+                .catch(console.error);
+        }
+
+        function submitPlannedOrder() {
+            const data = {
+                orderNumber: document.getElementById("newOrderNumber").value.trim(),
+                apnID: document.getElementById("newApnID").value.trim(),
+                specification: document.getElementById("newSpecification").value,
+                plannedQuantity: Number(document.getElementById("plannedQuantity").value.trim())
+            };
+            if (Object.values(data).some(val => !val)) {
+                return alert("Please fill all fields in planned order form.");
+            }
+
+            fetch(`${url}/add_order_to_library`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+                //document.getElementById("plannedOrderForm").reset();
+                //document.getElementById("popupModal").style.display = "none";
+                document.getElementById("plannedQuantity").value = "";
+                document.getElementById("newOrderNumber").value = ""
+            })
+            .catch(console.error);
+        }
+
+        // Close modal when clicking outside it
+        window.onclick = function (e) {
+            const modal = document.getElementById("popupModal");
+            if (e.target === modal) modal.style.display = "none";
+        };
+    </script>
+</body>
+</html>
