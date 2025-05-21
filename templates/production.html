@@ -75,9 +75,14 @@
                         <th>APN-ID</th>
                         <th>Specification</th>
                         <th>Quantity Produced</th>
-                        <th>Direction</th>
                         <th>Machine</th>
                         <th>Date & Time</th>
+                        <th>Top</th>
+                        <th>Bot</th>
+                        <th>Front</th>
+                        <th>Back</th>
+                        <th>Left</th>
+                        <th>Right</th>
                     </tr>
                 </thead>
                 <tbody id="productionTableBody"></tbody>
@@ -88,7 +93,7 @@
 
 {% block scripts %}
 <script>
-    
+    const url = "http://169.254.103.79:5000";
 
     function submitProductionForm() {
         const selectedDirections = Array.from(document.querySelectorAll('input[name="direction"]:checked'))
@@ -132,22 +137,19 @@
                 tbody.innerHTML = "";
                 
                 data.data.forEach(record => {
-                    const directions = [];
-                    if (record.top) directions.push("Top");
-                    if (record.bot) directions.push("Bot");
-                    if (record.front) directions.push("Front");
-                    if (record.back) directions.push("Back");
-                    if (record.left) directions.push("Left");
-                    if (record.right) directions.push("Right");
-
                     const row = `<tr>
                         <td>${record.orderNumber}</td>
                         <td>${record.apnID}</td>
                         <td>${record.specification}</td>
                         <td>${record.quantityProduced}</td>
-                        <td>${directions.join(", ")}</td>
                         <td>${record.machine}</td>
                         <td>${record.dateTime}</td>
+                        <td>${record.top || 0}</td>
+                        <td>${record.bot || 0}</td>
+                        <td>${record.front || 0}</td>
+                        <td>${record.back || 0}</td>
+                        <td>${record.left || 0}</td>
+                        <td>${record.right || 0}</td>
                     </tr>`;
                     tbody.insertAdjacentHTML("beforeend", row);
                 });
