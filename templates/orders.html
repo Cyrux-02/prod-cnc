@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ATBU Production - Orders</title>
+    <style>
+        body {
+            background-color: #0a0c0f;
+            color: #e4e6eb;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        h2 {
+            text-align: center;
+            font-size: 28px;
+            margin-top: 20px;
+            color: #ff7b00;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 25px;
+            background-color: rgba(30, 32, 36, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(255, 123, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .order-form {
+            margin-bottom: 40px;
+        }
+
+        label {
+            font-size: 16px;
+            margin-top: 12px;
+            display: block;
+            color: #b8bcc4;
+            margin-bottom: 5px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            font-size: 15px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            border: 1px solid #2c2f35;
+            border-radius: 10px;
+            background-color: #1a1d21;
+            color: #e4e6eb;
+            transition: all 0.3s ease;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #ff7b00;
+            box-shadow: 0 0 0 2px rgba(255, 123, 0, 0.1);
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 15px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, #4caf50, #43a047);
+            color: white;
+            width: 100%;
+        }
+
+        .send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2);
+        }
+
+        /* Table styles */
+        .table-wrapper {
+            margin-top: 30px;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 10px;
+            background: #1a1d21;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #2c2f35;
+        }
+
+        th {
+            background-color: #14171a;
+            color: #ff7b00;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            background-color: transparent;
+            color: #b8bcc4;
+        }
+
+        tr:hover td {
+            background-color: rgba(255, 123, 0, 0.05);
+        }
+
+        /* Sidebar styles */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 240px;
+            background: linear-gradient(180deg, #14171a 0%, #0a0c0f 100%);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 40px;
+            box-shadow: 4px 0 24px rgba(255, 123, 0, 0.1);
+            z-index: 10000;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .sidebar .logo {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 50px;
+            letter-spacing: 2px;
+            color: #ff7b00;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, #ff7b00, #ff6b00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .sidebar nav {
+            width: 100%;
+        }
+
+        .sidebar nav a {
+            display: flex;
+            align-items: center;
+            width: 85%;
+            margin: 8px auto;
+            padding: 14px 20px;
+            border-radius: 12px;
+            color: #b8bcc4;
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sidebar nav a:before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, rgba(255, 123, 0, 0.1), transparent);
+            transition: width 0.3s ease;
+        }
+
+        .sidebar nav a:hover:before {
+            width: 100%;
+        }
+
+        .sidebar nav a:hover, .sidebar nav a.active {
+            color: #ff7b00;
+            transform: translateX(5px);
+        }
+
+        .sidebar nav a.active {
+            background: rgba(255, 123, 0, 0.1);
+            font-weight: 600;
+        }
+
+        @media (max-width: 900px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .container {
+                width: 95%;
+                margin: 20px auto;
+                padding: 15px;
+            }
+        }
+
+        @media (min-width: 901px) {
+            .container {
+                margin-left: 260px;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Sidebar Toggle Button (Mobile) -->
+    <button class="sidebar-toggle" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+    
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="logo">
+            <i class="fas fa-microchip"></i>
+            ATBU CNC
+        </div>
+        <nav>
+            <a href="/">
+                <i class="fas fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/orders" class="active">
+                <i class="fas fa-box"></i>
+                <span>Orders</span>
+            </a>
+            <a href="#">
+                <i class="fas fa-cogs"></i>
+                <span>Specs</span>
+            </a>
+            <a href="#">
+                <i class="fas fa-industry"></i>
+                <span>Production</span>
+            </a>
+        </nav>
+    </aside>
+
+    <div class="container">
+        <h2>Planned Orders Management</h2>
+        
+        <!-- Add Order Form -->
+        <div class="order-form">
+            <h3>Add New Planned Order</h3>
+            <form id="plannedOrderForm">
+                <label for="newOrderNumber">Order Number:</label>
+                <input type="text" id="newOrderNumber" required>
+
+                <label for="newApnID">APN-ID:</label>
+                <input type="text" id="newApnID" required>
+
+                <label for="newSpecification">Specification:</label>
+                <select id="newSpecification">
+                    <option value="1">Main Part Serie Manufacturing</option>
+                    <option value="2">Sub-Part Serie Manufacturing</option>
+                    <option value="3">Main Part Proto Manufacturing</option>
+                    <option value="4">Sub-Part Proto Manufacturing</option>
+                </select>
+
+                <label for="plannedQuantity">Planned Quantity:</label>
+                <input type="number" id="plannedQuantity" min="1" required>
+
+                <button type="button" class="send-btn" onclick="submitPlannedOrder()">Add to Library</button>
+            </form>
+        </div>
+
+        <!-- Orders Table -->
+        <div class="table-wrapper">        <table id="plannedOrdersTable">
+                <thead>
+                    <tr>
+                        <th>Order Number</th>
+                        <th>APN-ID</th>
+                        <th>Specification</th>
+                        <th>Planned Quantity</th>
+                        <th>Date & Time</th>
+                        <th>Directions</th>
+                    </tr>
+                </thead>
+                <tbody id="plannedOrdersBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const url = "http://169.254.103.79:5000";
+
+        // Fetch all orders on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchAllOrders();
+        });
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        function submitPlannedOrder() {
+            const data = {
+                orderNumber: document.getElementById("newOrderNumber").value.trim(),
+                apnID: document.getElementById("newApnID").value.trim(),
+                specification: document.getElementById("newSpecification").value,
+                plannedQuantity: Number(document.getElementById("plannedQuantity").value.trim()),
+            };
+            
+            if (Object.values(data).some(val => val === "" || val === null || val === undefined)) {
+                return alert("Please fill all fields in the form.");
+            }
+
+            fetch(`${url}/add_order_to_library`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+                document.getElementById("plannedOrderForm").reset();
+                fetchAllOrders(); // Refresh the table
+            })
+            .catch(console.error);
+        }
+
+        function fetchAllOrders() {
+            fetch(`${url}/all_orders`)
+                .then(res => res.json())
+                .then(data => {
+                    const tbody = document.getElementById("plannedOrdersBody");
+                    tbody.innerHTML = "";                    data.data.forEach(order => {
+                        const row = `<tr>
+                            <td>${order.orderNumber}</td>
+                            <td>${order.apnID}</td>
+                            <td>${order.specification}</td>
+                            <td>${order.plannedQuantity}</td>
+                            <td>${order.createdDate}</td>
+                            <td></td>
+                        </tr>`;
+                        tbody.insertAdjacentHTML("beforeend", row);
+                    });
+                })
+                .catch(console.error);
+        }
+    </script>
+</body>
+</html>
