@@ -275,70 +275,70 @@ def all_orders():
 def production():
     return render_template('production.html')
 
-@app.route('/submit_production', methods=['POST'])
-def submit_production():
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({"error": "Database connection error"}), 500
+# @app.route('/submit-production', methods=['POST'])
+# def submit_production():
+#     conn = get_db_connection()
+#     if not conn:
+#         return jsonify({"error": "Database connection error"}), 500
 
-    try:
-        data = request.get_json()
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+#     try:
+#         data = request.get_json()
+#         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        order_number = data["orderNumber"]
-        apn_id = data["apnID"]
-        specification = data["specification"]
-        quantity = int(data["quantity"])
-        machine = data["machine"]
-        directions = data.get("directions", [])
+#         order_number = data["orderNumber"]
+#         apn_id = data["apnID"]
+#         specification = data["specification"]
+#         quantity = int(data["quantity"])
+#         machine = data["machine"]
+#         directions = data.get("directions", [])
 
-        direction_map = {
-            "Top": "top",
-            "Bot": "bot",
-            "Front": "front",
-            "Back": "back",
-            "Left": "left",
-            "Right": "right"
-        }
+#         direction_map = {
+#             "Top": "top",
+#             "Bot": "bot",
+#             "Front": "front",
+#             "Back": "back",
+#             "Left": "left",
+#             "Right": "right"
+#         }
 
-        direction_values = {col: 0 for col in direction_map.values()}
+#         direction_values = {col: 0 for col in direction_map.values()}
 
-        if directions:
-            for d in directions:
-                col = direction_map.get(d)
-                if col:
-                    direction_values[col] = quantity
+#         if directions:
+#             for d in directions:
+#                 col = direction_map.get(d)
+#                 if col:
+#                     direction_values[col] = quantity
 
-        query = """
-            INSERT INTO production_records (
-                orderNum, apnID, specId, quantity, machine,
-                top, bot, front, back, `left`, `right`, createdDate
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """
-        values = (
-            order_number,
-            apn_id,
-            specification,
-            quantity,
-            machine,
-            direction_values["top"],
-            direction_values["bot"],
-            direction_values["front"],
-            direction_values["back"],
-            direction_values["left"],
-            direction_values["right"],
-            timestamp
-        )
+#         query = """
+#             INSERT INTO production_records (
+#                 orderNum, apnID, specId, quantity, machine,
+#                 top, bot, front, back, `left`, `right`, createdDate
+#             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+#         """
+#         values = (
+#             order_number,
+#             apn_id,
+#             specification,
+#             quantity,
+#             machine,
+#             direction_values["top"],
+#             direction_values["bot"],
+#             direction_values["front"],
+#             direction_values["back"],
+#             direction_values["left"],
+#             direction_values["right"],
+#             timestamp
+#         )
 
-        with conn.cursor() as cursor:
-            cursor.execute(query, values)
-            conn.commit()
+#         with conn.cursor() as cursor:
+#             cursor.execute(query, values)
+#             conn.commit()
 
-        return jsonify({"message": "Production record submitted successfully"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
+#         return jsonify({"message": "Production record submitted successfully"})
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
+#     finally:
+#         conn.close()
 
 @app.route('/production_history', methods=['GET'])
 def production_history():
@@ -348,11 +348,11 @@ def production_history():
 
     try:
         query = """
-            SELECT pr.orderNum, pr.apnID, s.name, pr.quantity,
+            SELECT pr.order, pr.apn, s.name, pr.quantity,
                    pr.machine, pr.createdDate,
                    pr.top, pr.bot, pr.front, pr.back, pr.left, pr.right
-            FROM production_records pr
-            JOIN specifications s ON pr.specId = s.id
+            FROM production pr
+            JOIN specifications s ON pr.specification = s.id
             ORDER BY pr.createdDate DESC
         """
 
@@ -385,6 +385,82 @@ def production_history():
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
+
+@app.route('/submit_production', methods=['POST'])
+def submit_production():
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database connection error"}), 500
+
+    try:
+        data = request.get_json()
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        required = ["orderNumber", "apnID", "specification", "quantity", "machine"]
+        missing = [f for f in required if f not in data or not str(data[f]).strip()]
+        if missing:
+            return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+        quantity = int(data.get("quantity", 0))
+        if quantity <= 0:
+            return jsonify({"error": "Quantity must be greater than 0"}), 400
+
+        directions = data.get("directions", [])
+
+        direction_map = {
+            "Top": "top",
+            "Bot": "bot",
+            "Front": "front",
+            "Back": "back",
+            "Left": "left",
+            "Right": "right"
+        }
+
+        direction_values = {col: 0 for col in direction_map.values()}
+
+        if directions:
+            for d in directions:
+                col = direction_map.get(d)
+                if col:
+                    direction_values[col] = quantity        
+        query = """
+            INSERT INTO production (
+                `order`, apn, specification, quantity, machine,
+                top, bot, front, back, `left`, `right`, createdDate
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        values = (
+            data["orderNumber"],
+            data["apnID"],
+            data["specification"],
+            quantity,
+            data["machine"],
+            direction_values["top"],
+            direction_values["bot"],
+            direction_values["front"],
+            direction_values["back"],
+            direction_values["left"],
+            direction_values["right"],
+            timestamp
+        )
+        print(values)
+        with conn.cursor() as cursor:
+            cursor.execute(query, values)
+            conn.commit()
+
+        return jsonify({"message": "CNC order submitted successfully."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+
+
+
+
+
+
 
 if __name__ == '__main__':
     app.run(host='169.254.103.79', port=5500)
