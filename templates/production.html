@@ -1,314 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ATBU Production - Production Status</title>
-    <style>
-        body {
-            background-color: #0a0c0f;
-            color: #e4e6eb;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-        }
+{% extends "base.html" %}
 
-        h2 {
-            text-align: center;
-            font-size: 28px;
-            margin-top: 20px;
-            color: #ff7b00;
-            font-weight: 300;
-            letter-spacing: 1px;
-        }
+{% block title %}ATBU Production - Production Status{% endblock %}
 
-        .container {
-            width: 90%;
-            max-width: 900px;
-            margin: 20px auto;
-            padding: 25px;
-            background-color: rgba(30, 32, 36, 0.95);
-            border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(255, 123, 0, 0.1);
-            backdrop-filter: blur(10px);
-        }
-
-        .section-header {
-            margin-bottom: 25px;
-            border-bottom: 1px solid #2c2f35;
-            padding-bottom: 10px;
-        }
-
-        .section-header h3 {
-            color: #ff7b00;
-            font-size: 20px;
-            font-weight: 500;
-            margin: 0;
-        }
-
-        .production-form {
-            background: rgba(26, 29, 33, 0.5);
-            padding: 25px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-        }
-
-        label {
-            font-size: 16px;
-            margin-top: 12px;
-            display: block;
-            color: #b8bcc4;
-            margin-bottom: 5px;
-        }
-
-        input, select {
-            width: 100%;
-            padding: 12px;
-            font-size: 15px;
-            margin-top: 5px;
-            margin-bottom: 15px;
-            border: 1px solid #2c2f35;
-            border-radius: 10px;
-            background-color: #1a1d21;
-            color: #e4e6eb;
-            transition: all 0.3s ease;
-        }
-
-        input:focus, select:focus {
-            outline: none;
-            border-color: #ff7b00;
-            box-shadow: 0 0 0 2px rgba(255, 123, 0, 0.1);
-        }
-
-        button {
-            padding: 12px 24px;
-            font-size: 15px;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 10px;
-            font-weight: 500;
-            letter-spacing: 0.5px;
-        }
-
-        .send-btn {
-            background: linear-gradient(135deg, #ff7b00, #ff6b00);
-            color: white;
-            width: 100%;
-            margin-top: 20px;
-        }
-
-        .send-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(255, 123, 0, 0.2);
-        }
-
-        .direction-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin: 15px 0;
-        }
-
-        .direction-box {
-            background-color: #1a1d21;
-            border: 1px solid #2c2f35;
-            border-radius: 8px;
-            padding: 8px 12px;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .direction-box:hover {
-            border-color: #ff7b00;
-            background-color: rgba(255, 123, 0, 0.05);
-        }
-
-        .direction-box input {
-            margin-right: 8px;
-            transform: scale(1.1);
-        }
-
-        /* Sidebar styles */
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100vh;
-            width: 240px;
-            background: linear-gradient(180deg, #14171a 0%, #0a0c0f 100%);
-            color: #fff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding-top: 40px;
-            box-shadow: 4px 0 24px rgba(255, 123, 0, 0.1);
-            z-index: 10000;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .sidebar .logo {
-            font-size: 24px;
-            font-weight: 600;
-            margin-bottom: 50px;
-            letter-spacing: 2px;
-            color: #ff7b00;
-            text-transform: uppercase;
-            background: linear-gradient(135deg, #ff7b00, #ff6b00);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .sidebar nav {
-            width: 100%;
-        }
-
-        .sidebar nav a {
-            display: flex;
-            align-items: center;
-            width: 85%;
-            margin: 8px auto;
-            padding: 14px 20px;
-            border-radius: 12px;
-            color: #b8bcc4;
-            text-decoration: none;
-            font-size: 15px;
-            font-weight: 500;
-            letter-spacing: 0.5px;
-            transition: all 0.2s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .sidebar nav a:before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-            width: 0;
-            background: linear-gradient(90deg, rgba(255, 123, 0, 0.1), transparent);
-            transition: width 0.3s ease;
-        }
-
-        .sidebar nav a:hover:before {
-            width: 100%;
-        }
-
-        .sidebar nav a:hover, .sidebar nav a.active {
-            color: #ff7b00;
-            transform: translateX(5px);
-        }
-
-        .sidebar nav a.active {
-            background: rgba(255, 123, 0, 0.1);
-            font-weight: 600;
-        }
-
-        .sidebar nav a i {
-            margin-right: 12px;
-            font-size: 18px;
-        }
-
-        @media (max-width: 900px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-            .sidebar.open {
-                transform: translateX(0);
-            }
-            .container {
-                width: 95%;
-                margin: 20px auto;
-                padding: 15px;
-            }
-        }
-
-        @media (min-width: 901px) {
-            .container {
-                margin-left: 260px;
-            }
-        }
-
-        .table-wrapper {
-            margin-top: 30px;
-            border-radius: 15px;
-            overflow: hidden;
-            background: rgba(26, 29, 33, 0.5);
-            padding: 20px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            margin-top: 10px;
-            background: #1a1d21;
-        }
-
-        th, td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid #2c2f35;
-        }
-
-        th {
-            background-color: #14171a;
-            color: #ff7b00;
-            font-weight: 500;
-            letter-spacing: 0.5px;
-        }
-
-        td {
-            background-color: transparent;
-            color: #b8bcc4;
-        }
-
-        tr:hover td {
-            background-color: rgba(255, 123, 0, 0.05);
-        }
-    </style>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-</head>
-<body>
-    <!-- Sidebar Toggle Button (Mobile) -->
-    <button class="sidebar-toggle" onclick="toggleSidebar()">
-        <i class="fas fa-bars"></i>
-    </button>
-    
-    <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-    
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-        <div class="logo">
-            <i class="fas fa-microchip"></i>
-            ATBU CNC
-        </div>
-        <nav>
-            <a href="/">
-                <i class="fas fa-chart-line"></i>
-                <span>Dashboard</span>
-            </a>
-            <a href="/orders">
-                <i class="fas fa-box"></i>
-                <span>Orders</span>
-            </a>
-            <a href="/specs">
-                <i class="fas fa-cogs"></i>
-                <span>Specs</span>
-            </a>
-            <a href="/production" class="active">
-                <i class="fas fa-industry"></i>
-                <span>Production</span>
-            </a>
-        </nav>
-    </aside>
-
+{% block content %}
     <div class="container">
         <h2>Production Status</h2>
         
@@ -389,83 +83,78 @@
             </table>
         </div>
     </div>
+{% endblock %}
 
-    <script>
-        const url = "http://169.254.103.79:5000";
+{% block scripts %}
+<script>
+    const url = "http://169.254.103.79:5000";
 
-        // Sidebar toggle for mobile
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
-            document.getElementById('sidebarOverlay').classList.toggle('active');
+    function submitProductionForm() {
+        const selectedDirections = Array.from(document.querySelectorAll('input[name="direction"]:checked'))
+            .map(el => el.value);
+
+        const data = {
+            orderNumber: document.getElementById("orderNumber").value.trim(),
+            apnID: document.getElementById("apnID").value.trim(),
+            specification: document.getElementById("specification").value,
+            quantity: document.getElementById("quantityProduced").value.trim(),
+            machine: document.getElementById("machine").value,
+            directions: selectedDirections
+        };
+
+        if (Object.values(data).some(val => !val)) {
+            return alert("Please fill in all fields");
         }
 
-        function submitProductionForm() {
-            const selectedDirections = Array.from(document.querySelectorAll('input[name="direction"]:checked'))
-                .map(el => el.value);
+        fetch(`${url}/submit_production`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message);
+            document.getElementById("productionForm").reset();
+            fetchProductionHistory();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while submitting the production entry');
+        });
+    }
 
-            const data = {
-                orderNumber: document.getElementById("orderNumber").value.trim(),
-                apnID: document.getElementById("apnID").value.trim(),
-                specification: document.getElementById("specification").value,
-                quantity: document.getElementById("quantityProduced").value.trim(),
-                machine: document.getElementById("machine").value,
-                directions: selectedDirections
-            };
-
-            if (Object.values(data).some(val => !val)) {
-                return alert("Please fill in all fields");
-            }
-
-            fetch(`${url}/submit_production`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data)
-            })
+    function fetchProductionHistory() {
+        fetch(`${url}/production_history`)
             .then(res => res.json())
             .then(data => {
-                alert(data.message);
-                document.getElementById("productionForm").reset();
-                fetchProductionHistory();
+                const tbody = document.getElementById("productionTableBody");
+                tbody.innerHTML = "";
+                
+                data.data.forEach(record => {
+                    const directions = [];
+                    if (record.top) directions.push("Top");
+                    if (record.bot) directions.push("Bot");
+                    if (record.front) directions.push("Front");
+                    if (record.back) directions.push("Back");
+                    if (record.left) directions.push("Left");
+                    if (record.right) directions.push("Right");
+
+                    const row = `<tr>
+                        <td>${record.orderNumber}</td>
+                        <td>${record.apnID}</td>
+                        <td>${record.specification}</td>
+                        <td>${record.quantityProduced}</td>
+                        <td>${directions.join(", ")}</td>
+                        <td>${record.machine}</td>
+                        <td>${record.dateTime}</td>
+                    </tr>`;
+                    tbody.insertAdjacentHTML("beforeend", row);
+                });
             })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred while submitting the production entry');
-            });
-        }
+            .catch(console.error);
+    }
 
-        function fetchProductionHistory() {
-            fetch(`${url}/production_history`)
-                .then(res => res.json())
-                .then(data => {
-                    const tbody = document.getElementById("productionTableBody");
-                    tbody.innerHTML = "";
-                    
-                    data.data.forEach(record => {
-                        const directions = [];
-                        if (record.top) directions.push("Top");
-                        if (record.bot) directions.push("Bot");
-                        if (record.front) directions.push("Front");
-                        if (record.back) directions.push("Back");
-                        if (record.left) directions.push("Left");
-                        if (record.right) directions.push("Right");
-
-                        const row = `<tr>
-                            <td>${record.orderNumber}</td>
-                            <td>${record.apnID}</td>
-                            <td>${record.specification}</td>
-                            <td>${record.quantityProduced}</td>
-                            <td>${directions.join(", ")}</td>
-                            <td>${record.machine}</td>
-                            <td>${record.dateTime}</td>
-                        </tr>`;
-                        tbody.insertAdjacentHTML("beforeend", row);
-                    });
-                })
-                .catch(console.error);
-        }
-
-        // Load production history when the page loads
-        document.addEventListener('DOMContentLoaded', fetchProductionHistory);
-    </script>
-</body>
-</html>
+    // Load production history when the page loads
+    document.addEventListener('DOMContentLoaded', fetchProductionHistory);
+</script>
+{% endblock %}
