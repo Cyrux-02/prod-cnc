@@ -27,7 +27,7 @@
                 </select>
 
                 <label for="quantity">Quantity Produced:</label>
-                <input type="number" id="quantity" required>
+                <input type="number" id="quantity" min="1" required>
 
                 <label>Direction:</label>
                 <div class="direction-container">
@@ -56,10 +56,9 @@
                     <option value="CNC-01">CNC Machine 01</option>
                     <option value="CNC-02">CNC Machine 02</option>
                     <option value="CNC-03">CNC Machine 03</option>
-                    <option value="CNC-03">CNC Machine 04</option>
                 </select>
 
-                <button type="button" class="send-btn" onclick="submitProductionForm()">Submit Production Entry</button>
+                <button type="button" class="send-btn" onclick="submitForm()">Submit Production Entry</button>
             </form>
         </div>
 
@@ -93,9 +92,9 @@
 
 {% block scripts %}
 <script>
-    const url = "http://169.254.103.79:5000";
+    
 
-    function submitProductionForm() {
+    function submitForm() {
         const selectedDirections = Array.from(document.querySelectorAll('input[name="direction"]:checked'))
             .map(el => el.value);
 
@@ -108,10 +107,19 @@
             directions: selectedDirections
         };
 
+        // Validate all required fields
         if (!data.orderNumber || !data.apnID || !data.specification || !data.quantity || !data.machine) {
-            return alert("Please fill in all fields");
+            alert("Please fill in all required fields");
+            return;
         }
 
+        // Validate quantity
+        if (parseInt(data.quantity) <= 0) {
+            alert("Quantity must be greater than 0");
+            return;
+        }
+
+        // Submit the data
         fetch(`${url}/submit_production`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

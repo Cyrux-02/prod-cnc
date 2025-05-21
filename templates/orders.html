@@ -31,16 +31,6 @@
                     <input type="number" id="plannedQuantity" min="1" required>
                 </div>
 
-                <label>Choose Directions:</label>
-                <div class="direction-container">
-                    <label class="direction-box"><input type="checkbox" name="direction" value="Top"> Top</label>
-                    <label class="direction-box"><input type="checkbox" name="direction" value="Bot"> Bot</label>
-                    <label class="direction-box"><input type="checkbox" name="direction" value="Left"> Left</label>
-                    <label class="direction-box"><input type="checkbox" name="direction" value="Right"> Right</label>
-                    <label class="direction-box"><input type="checkbox" name="direction" value="Front"> Front</label>
-                    <label class="direction-box"><input type="checkbox" name="direction" value="Back"> Back</label>
-                </div>
-
                 <button type="button" class="send-btn" onclick="submitOrder()">Add Order</button>
             </form>
         </div>
@@ -58,7 +48,6 @@
                         <th>Specification</th>
                         <th>Planned Quantity</th>
                         <th>Created Date</th>
-                        <th>Directions</th>
                     </tr>
                 </thead>
                 <tbody id="ordersTableBody"></tbody>
@@ -76,15 +65,12 @@
     });
 
     function submitOrder() {
-        const selectedDirections = Array.from(document.querySelectorAll('input[name="direction"]:checked'))
-            .map(el => el.value);
-
+      
         const data = {
             orderNumber: document.getElementById("orderNumber").value,
             apnID: document.getElementById("apnID").value,
             specification: document.getElementById("specification").value,
             plannedQuantity: document.getElementById("plannedQuantity").value,
-            directions: selectedDirections
         };
 
         if (!data.orderNumber || !data.apnID || !data.specification || !data.plannedQuantity) {
@@ -123,7 +109,6 @@
                         <td>${order.specification}</td>
                         <td>${order.plannedQuantity}</td>
                         <td>${order.createdDate}</td>
-                        <td>${order.directions || ''}</td>
                     </tr>`;
                     tbody.insertAdjacentHTML("beforeend", row);
                 });
