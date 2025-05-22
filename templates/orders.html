@@ -4,7 +4,7 @@
 
 {% block content %}
     <div class="container">
-        <div class="section-header">
+        <div class="section-header">    
             <h3>Orders Management</h3>
         </div>
 
@@ -65,7 +65,6 @@
     });
 
     function submitOrder() {
-      
         const data = {
             orderNumber: document.getElementById("orderNumber").value,
             apnID: document.getElementById("apnID").value,
@@ -101,19 +100,81 @@
             .then(response => {
                 const tbody = document.getElementById("ordersTableBody");
                 tbody.innerHTML = "";
-                
+
                 response.data.forEach(order => {
                     const row = `<tr>
-                        <td>${order.orderNumber}</td>
-                        <td>${order.apnID}</td>
+                        <td class="order-number" style="cursor:pointer; color: green; text-decoration: underline;">${order.orderNumber}</td>
+                        <td class="apn-id" style="cursor:pointer; color: green; text-decoration: underline;">${order.apnID}</td>
                         <td>${order.specification}</td>
                         <td>${order.plannedQuantity}</td>
                         <td>${order.createdDate}</td>
                     </tr>`;
                     tbody.insertAdjacentHTML("beforeend", row);
                 });
+
+                // Attach click event for order number filtering
+                document.querySelectorAll("#ordersTableBody .order-number").forEach(cell => {
+                    cell.addEventListener("click", () => {
+                        filterByOrder(cell.textContent);
+                    });
+                });
+
+                // Attach click event for APN-ID details popup
+                document.querySelectorAll("#ordersTableBody .apn-id").forEach(cell => {
+                    cell.addEventListener("click", () => {
+                        showApnDetails(cell);
+                    });
+                });
             })
             .catch(console.error);
     }
+
+    function filterByOrder(orderNumber) {
+        const tbody = document.getElementById("ordersTableBody");
+        const rows = tbody.getElementsByTagName("tr");
+
+        for (let row of rows) {
+            const cellOrder = row.cells[0].textContent || row.cells[0].innerText;
+            if (cellOrder === orderNumber) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        }
+
+        showClearFilterButton();
+    }
+
+    function showClearFilterButton() {
+        if (!document.getElementById("clearFilterBtn")) {
+            const container = document.querySelector(".section-header");
+            const btn = document.createElement("button");
+            btn.id = "clearFilterBtn";
+            btn.textContent = "Clear Filter";
+            btn.style.marginLeft = "10px";
+            btn.onclick = clearFilter;
+            container.appendChild(btn);
+        }
+    }
+
+    function clearFilter() {
+        const tbody = document.getElementById("ordersTableBody");
+        const rows = tbody.getElementsByTagName("tr");
+        for (let row of rows) {
+            row.style.display = "";
+        }
+        const btn = document.getElementById("clearFilterBtn");
+        if (btn) btn.remove();
+    }
+
+    function showApnDetails(cell) {
+        const row = cell.parentElement;
+        const spec = row.cells[2].textContent || row.cells[2].innerText;
+        const plannedQty = row.cells[3].textContent || row.cells[3].innerText;
+        const createdDate = row.cells[4].textContent || row.cells[4].innerText;
+
+        alert(`APN-ID: ${cell.textContent}\nSpecification: ${spec}\nPlanned Quantity: ${plannedQty}\nCreated Date: ${createdDate}`);
+    }
+
 </script>
 {% endblock %}

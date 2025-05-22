@@ -2,141 +2,165 @@
 
 {% block title %}ATBU Production - Specifications{% endblock %}
 
-
-
 {% block content %}
-    <div class="container">
-        <div class="section-header">
-             <h3>Production Specifications Form</h3>
-        </div>
+<style>
+    .table-wrapper {
+        max-height: 400px;
+        overflow-y: auto;
+        border: 1px solid #ccc;
+    }
+
+    #historyTable {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    #historyTable thead th {
+        position: sticky;
+        top: 0;
+        background-color: #f2f2f2; /* adjust as needed */
+        z-index: 1;
+        border-bottom: 2px solid #999;
+    }
+
+    #historyTable th, #historyTable td {
+        padding: 8px;
+        text-align: center;
+        border: 1px solid #ddd;
+    }
+</style>
+
+<div class="container">
+    <div class="section-header">
+         <h3>Production Specifications Form</h3>
+    </div>
+    
+    <form id="orderForm">
+        <label for="orderNumber">Order Number:</label>
+        <input type="text" id="orderNumber" required>
+
+        <label for="apnID">APN-ID:</label>
+        <input type="text" id="apnID" required>
+
+        <label for="specification">Specification:</label>
+        <select id="specification">
+            <option value="1">Main Part Serie Manufacturing</option>
+            <option value="2">Sub-Part Serie Manufacturing</option>
+            <option value="3">Main Part Proto Manufacturing</option>
+            <option value="4">Sub-Part Proto Manufacturing</option>
+        </select>
+
+        <label for="quantityProduced">Quantity Produced:</label>
+        <input type="number" id="quantityProduced" required>
         
-        <form id="orderForm">
-            <label for="orderNumber">Order Number:</label>
-            <input type="text" id="orderNumber" required>
-
-            <label for="apnID">APN-ID:</label>
-            <input type="text" id="apnID" required>
-
-            <label for="specification">Specification:</label>
-            <select id="specification">
-                <option value="1">Main Part Serie Manufacturing</option>
-                <option value="2">Sub-Part Serie Manufacturing</option>
-                <option value="3">Main Part Proto Manufacturing</option>
-                <option value="4">Sub-Part Proto Manufacturing</option>
-            </select>
-
-            <label for="quantityProduced">Quantity Produced:</label>
-            <input type="number" id="quantityProduced" required>
-            
-            <label>Choose Directions:</label>
-            <div class="direction-container" id="prodDirections">
-                <label class="direction-box"><input type="checkbox" name="direction" value="Top"> Top</label>
-                <label class="direction-box"><input type="checkbox" name="direction" value="Bot"> Bot</label>
-                <label class="direction-box"><input type="checkbox" name="direction" value="Left"> Left</label>
-                <label class="direction-box"><input type="checkbox" name="direction" value="Right"> Right</label>
-                <label class="direction-box"><input type="checkbox" name="direction" value="Front"> Front</label>
-                <label class="direction-box"><input type="checkbox" name="direction" value="Back"> Back</label>
-            </div>
-
-            <button type="button" class="send-btn" onclick="submitForm()">Submit Specification</button>
-        </form>
-
-        <div class="section-header" style="margin-top: 40px;">
-            <h3>Production History</h3>
+        <label>Choose Directions:</label>
+        <div class="direction-container" id="prodDirections">
+            <label class="direction-box"><input type="checkbox" name="direction" value="Top"> Top</label>
+            <label class="direction-box"><input type="checkbox" name="direction" value="Bot"> Bot</label>
+            <label class="direction-box"><input type="checkbox" name="direction" value="Left"> Left</label>
+            <label class="direction-box"><input type="checkbox" name="direction" value="Right"> Right</label>
+            <label class="direction-box"><input type="checkbox" name="direction" value="Front"> Front</label>
+            <label class="direction-box"><input type="checkbox" name="direction" value="Back"> Back</label>
         </div>
 
-        <div class="flex-between flex-col">
-            <div class="dateFilter">
-                <label>Filter by Date:</label>
-                <div class="date-inputs">
-                    <div>
-                        <label for="filterDateFrom">From:</label>
-                        <input type="date" id="filterDateFrom">
-                    </div>
-                    <div>
-                        <label for="filterDateTo">To:</label>
-                        <input type="date" id="filterDateTo">
-                    </div>
+        <button type="button" class="send-btn" onclick="submitForm()">Submit Specification</button>
+    </form>
+
+    <div class="section-header" style="margin-top: 40px;">
+        <h3>Production History</h3>
+    </div>
+
+    <div class="flex-between flex-col">
+        <div class="dateFilter">
+            <label>Filter by Date:</label>
+            <div class="date-inputs">
+                <div>
+                    <label for="filterDateFrom">From:</label>
+                    <input type="date" id="filterDateFrom">
                 </div>
-                <div class="filter-actions">
-                    <button onclick="fetchFilteredHistory()">Apply Filter</button>
-                    <button onclick="fetchdata()" class="secondary-btn">Show All History</button>
+                <div>
+                    <label for="filterDateTo">To:</label>
+                    <input type="date" id="filterDateTo">
                 </div>
             </div>
-        </div>
-
-         
-
-        <div class="table-wrapper">
-            <table id="historyTable" style="display: none;">
-                <thead>
-                    <tr>
-                        <th>Order Number</th>
-                        <th>APN-ID</th>
-                        <th>Specification</th>
-                        <th>Quantity</th>
-                        <th>Date & Time</th>
-                        <th>Directions</th>
-                    </tr>
-                </thead>
-                <tbody id="historyTableBody"></tbody>
-            </table>
+            <div class="filter-actions">
+                <button onclick="fetchFilteredHistory()">Apply Filter</button>
+                <button onclick="fetchdata()" class="secondary-btn">Show All History</button>
+            </div>
         </div>
     </div>
+
+    <div class="table-wrapper">
+        <table id="historyTable" style="display: none;">
+            <thead>
+                <tr>
+                    <th>Order Number</th>
+                    <th>APN-ID</th>
+                    <th>Specification</th>
+                    <th>Quantity</th>
+                    <th>Date & Time</th>
+                    <th>Directions</th>
+                </tr>
+            </thead>
+            <tbody id="historyTableBody"></tbody>
+        </table>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
-    <script>
-        let history = [];
+<script>
+    let history = [];
 
-        function fetchdata() {
-            fetch(`${url}/history`)
-                .then(res => res.json())
-                .then(data => {
-                    history = data.data;
-                    displayHistory();
-                })
-                .catch(console.error);
-        }
+    function fetchdata() {
+        fetch(`${url}/history`)
+            .then(res => res.json())
+            .then(data => {
+                history = data.data;
+                displayHistory();
+            })
+            .catch(console.error);
+    }
 
-        function displayHistory() {
-            const table = document.getElementById("historyTable");
-            const body = document.getElementById("historyTableBody");
-            table.style.display = "table";
-            body.innerHTML = "";
+    function displayHistory() {
+        const table = document.getElementById("historyTable");
+        const body = document.getElementById("historyTableBody");
+        table.style.display = "table";
+        body.innerHTML = "";
+        
+        history.forEach(record => {
+            const directions = Object.entries(record)
+                .filter(([key, value]) => ['top', 'bot', 'front', 'back', 'left', 'right'].includes(key) && value > 0)
+                .map(([key]) => key.charAt(0).toUpperCase() + key.slice(1))
+                .join(', ');
             
-            history.forEach(record => {
-                const directions = Object.entries(record)
-                    .filter(([key, value]) => ['top', 'bot', 'front', 'back', 'left', 'right'].includes(key) && value > 0)
-                    .map(([key]) => key.charAt(0).toUpperCase() + key.slice(1))
-                    .join(', ');
-                
-                const row = `<tr>
-                    <td>${record.orderNumber}</td>
-                    <td>${record.apnID}</td>
-                    <td>${record.specification}</td>
-                    <td>${record.quantityProduced}</td>
-                    <td>${record.dateTime}</td>
-                    <td>${directions}</td>
-                </tr>`;
-                console.log(row);
-                body.insertAdjacentHTML("beforeend", row);
-            });
-        }
+            const row = `<tr>
+                <td>${record.orderNumber}</td>
+                <td>${record.apnID}</td>
+                <td>${record.specification}</td>
+                <td>${record.quantityProduced}</td>
+                <td>${record.dateTime}</td>
+                <td>${directions}</td>
+            </tr>`;
+            body.insertAdjacentHTML("beforeend", row);
+        });
+    }
 
-        function fetchFilteredHistory() {
-            const dateFrom = document.getElementById("filterDateFrom").value;
-            const dateTo = document.getElementById("filterDateTo").value;
-            if (!dateTo && !dateFrom) return alert("Select a date to filter.");
-            
-            fetch(`${url}/history?dateFrom=${dateFrom}&dateTo=${dateTo}`)
-                .then(res => res.json())
-                .then(data => {
-                    history = data.data;
-                    displayHistory();
-                })
-                .catch(console.error);
-        }
-    </script>
+    function fetchFilteredHistory() {
+        const dateFrom = document.getElementById("filterDateFrom").value;
+        const dateTo = document.getElementById("filterDateTo").value;
+        if (!dateTo && !dateFrom) return alert("Select a date to filter.");
+        
+        fetch(`${url}/history?dateFrom=${dateFrom}&dateTo=${dateTo}`)
+            .then(res => res.json())
+            .then(data => {
+                history = data.data;
+                displayHistory();
+            })
+            .catch(console.error);
+    }
+
+    // Optional: load history on page load
+    // document.addEventListener('DOMContentLoaded', fetchdata);
+</script>
 {% endblock %}
-y
