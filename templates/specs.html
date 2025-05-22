@@ -15,25 +15,13 @@
         border-collapse: collapse;
     }
 
-    #historyTable thead th {
-        position: sticky;
-        top: 0;
-        background-color: #f2f2f2;
-        z-index: 1;
-        border-bottom: 2px solid #999;
-    }
-
-    #historyTable th, #historyTable td {
-        padding: 8px;
-        text-align: center;
-        border: 1px solid #ddd;
-    }
+    
 
     #orderDetails {
         margin: 10px 0;
         padding: 10px;
-        border: 1px solid #ccc;
-        background-color: #f8f8f8;
+        border: 1px solid #cccccc29;
+        border-radius: 8px;
     }
 
     /* Horizontal square checkboxes container */
@@ -64,6 +52,7 @@
         color: #333;
         transition: background-color 0.3s, color 0.3s;
         text-transform: capitalize;
+        padding-inline: 12px;
     }
 
     /* Checked state */
@@ -143,9 +132,7 @@
         </div>
     </div>
 
-    <div class="table-wrapper">
-        <table id="historyTable" style="display: none;">
-            <thead>
+    <div class="table-wrapper">        <table id="historyTable" style="display: none;">            <thead>
                 <tr>
                     <th>Order Number</th>
                     <th>APN-ID</th>
@@ -164,12 +151,11 @@
 {% block scripts %}
 <script>
     let history = [];
-    let allOrders = [];
-
-    function fetchdata() {
+    let allOrders = [];    function fetchdata() {
         fetch(`/all_orders`)
             .then(res => res.json())
             .then(data => {
+                console.log('Received data:', data.data); // Debug log
                 history = data.data;
                 allOrders = data.data;
                 displayHistory();
@@ -268,18 +254,18 @@
             checkedBoxes.forEach(box => box.checked = false);
         })
         .catch(console.error);
-    }
-
-    function displayHistory() {
+    }    function displayHistory() {
         const table = document.getElementById("historyTable");
         const body = document.getElementById("historyTableBody");
         table.style.display = "table";
         body.innerHTML = "";
 
         history.forEach(record => {
-            const directions = ['top', 'bot', 'front', 'back', 'left', 'right']
+            // Get selected directions with proper formatting
+            const selectedDirections = ['top', 'bot', 'front', 'back', 'left', 'right']
                 .filter(dir => record[dir] > 0)
-                .join('-');
+                .map(dir => dir.charAt(0).toUpperCase() + dir.slice(1))
+                .join(' - ');
 
             const row = `<tr>
                 <td>${record.orderNumber}</td>
@@ -287,7 +273,7 @@
                 <td>${record.specification}</td>
                 <td>${record.plannedQuantity}</td>
                 <td>${record.createdDate}</td>
-                <td>${directions}</td>
+                <td>${selectedDirections || 'None'}</td>
             </tr>`;
             body.insertAdjacentHTML("beforeend", row);
         });

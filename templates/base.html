@@ -174,7 +174,6 @@
             border-radius: 15px;
             overflow: hidden;
             background: rgba(26, 29, 33, 0.5);
-            padding: 20px;
         }
 
         table {
@@ -205,6 +204,22 @@
         tr:hover td {
             background-color: rgba(255, 123, 0, 0.05);
         }
+        #historyTable thead, #productionTable thead  {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        border-bottom: 2px solid #999;
+    }
+    #historyTable thead th {
+
+        border: 2px solid #999;
+    }
+
+    #historyTable th, #historyTable td {
+        padding: 8px;
+        text-align: center;
+        border: 1px solid #ddd;
+    }
 
         /* Mobile responsive */
         .sidebar-toggle {

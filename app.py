@@ -103,9 +103,10 @@ def all_orders():
     try:
         query = """
             SELECT ol.orderNum, ol.apnID, s.name, ol.planned_quantity,
-                   ol.createdDate
-            FROM orders_library ol, specifications s
-            WHERE ol.specification = s.id
+                   ol.createdDate, ol.top, ol.bot, ol.front, ol.back,
+                   ol.left, ol.right
+            FROM orders_library ol
+            JOIN specifications s ON ol.specification = s.id
         """
 
         with conn.cursor() as cursor:
@@ -114,12 +115,21 @@ def all_orders():
 
         data_list = []
         for row in results:
+            (orderNum, apnID, specName, plannedQty, createdDate,
+             top, bot, front, back, left, right) = row
+            
             data_list.append({
-                "orderNumber": row[0],
-                "apnID": row[1],
-                "specification": row[2],
-                "plannedQuantity": row[3],
-                "createdDate": row[4].strftime("%Y-%m-%d %H:%M:%S") if hasattr(row[4], "strftime") else str(row[4])
+                "orderNumber": orderNum,
+                "apnID": apnID,
+                "specification": specName,
+                "plannedQuantity": plannedQty,
+                "createdDate": createdDate.strftime("%Y-%m-%d %H:%M:%S") if hasattr(createdDate, "strftime") else str(createdDate),
+                "top": top,
+                "bot": bot,
+                "front": front,
+                "back": back,
+                "left": left,
+                "right": right
             })
 
         return jsonify({"data": data_list})
