@@ -18,7 +18,7 @@
     #historyTable thead th {
         position: sticky;
         top: 0;
-        background-color: #f2f2f2; /* adjust as needed */
+        background-color: #f2f2f2;
         z-index: 1;
         border-bottom: 2px solid #999;
     }
@@ -28,42 +28,95 @@
         text-align: center;
         border: 1px solid #ddd;
     }
+
+    #orderDetails {
+        margin: 10px 0;
+        padding: 10px;
+        border: 1px solid #ccc;
+        background-color: #f8f8f8;
+    }
+
+    /* Horizontal square checkboxes container */
+    .direction-checkboxes {
+        display: flex;
+        gap: 10px;
+        margin: 10px 0 20px 0;
+    }
+
+    /* Hide default checkbox */
+    .direction-checkboxes input[type="checkbox"] {
+        display: none;
+    }
+
+    /* Custom square box */
+    .direction-checkboxes label {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        line-height: 40px;
+        text-align: center;
+        border: 2px solid #333;
+        border-radius: 4px;
+        cursor: pointer;
+        user-select: none;
+        background-color: #fff;
+        font-weight: bold;
+        color: #333;
+        transition: background-color 0.3s, color 0.3s;
+        text-transform: capitalize;
+    }
+
+    /* Checked state */
+    .direction-checkboxes input[type="checkbox"]:checked + label {
+        background-color: #ff6600;
+        color: #fff;
+        border-color: #ff6600;
+    }
 </style>
 
 <div class="container">
     <div class="section-header">
-         <h3>Production Specifications Form</h3>
+        <h3>Production Specifications Form</h3>
     </div>
-    
-    <form id="orderForm">
-        <label for="orderNumber">Order Number:</label>
-        <input type="text" id="orderNumber" required>
 
-        <label for="apnID">APN-ID:</label>
-        <input type="text" id="apnID" required>
-
-        <label for="specification">Specification:</label>
-        <select id="specification">
-            <option value="1">Main Part Serie Manufacturing</option>
-            <option value="2">Sub-Part Serie Manufacturing</option>
-            <option value="3">Main Part Proto Manufacturing</option>
-            <option value="4">Sub-Part Proto Manufacturing</option>
+    <!-- Removed onsubmit from form tag -->
+    <form id="specForm">
+        <label for="orderSelect">Select Order Number:</label>
+        <select id="orderSelect" required>
+            <option value="">Select Order</option>
         </select>
 
-        <label for="quantityProduced">Quantity Produced:</label>
-        <input type="number" id="quantityProduced" required>
-        
-        <label>Choose Directions:</label>
-        <div class="direction-container" id="prodDirections">
-            <label class="direction-box"><input type="checkbox" name="direction" value="Top"> Top</label>
-            <label class="direction-box"><input type="checkbox" name="direction" value="Bot"> Bot</label>
-            <label class="direction-box"><input type="checkbox" name="direction" value="Left"> Left</label>
-            <label class="direction-box"><input type="checkbox" name="direction" value="Right"> Right</label>
-            <label class="direction-box"><input type="checkbox" name="direction" value="Front"> Front</label>
-            <label class="direction-box"><input type="checkbox" name="direction" value="Back"> Back</label>
+        <label for="apnSelect">Select APN-ID:</label>
+        <select id="apnSelect" required>
+            <option value="">Select APN-ID</option>
+        </select>
+
+        <div id="orderDetails">
+            <p><strong>Specification:</strong> <span id="specDisplay">N/A</span></p>
+            <p><strong>Planned Quantity:</strong> <span id="plannedQtyDisplay">N/A</span></p>
         </div>
 
-        <button type="button" class="send-btn" onclick="submitForm()">Submit Specification</button>
+        <div class="direction-checkboxes">
+            <input type="checkbox" id="top" name="direction" value="top">
+            <label for="top">Top</label>
+
+            <input type="checkbox" id="bot" name="direction" value="bot">
+            <label for="bot">Bot</label>
+
+            <input type="checkbox" id="left" name="direction" value="left">
+            <label for="left">Left</label>
+
+            <input type="checkbox" id="right" name="direction" value="right">
+            <label for="right">Right</label>
+
+            <input type="checkbox" id="front" name="direction" value="front">
+            <label for="front">Front</label>
+
+            <input type="checkbox" id="back" name="direction" value="back">
+            <label for="back">Back</label>
+        </div>
+
+        <button type="submit" class="send-btn">Submit Specification</button>
     </form>
 
     <div class="section-header" style="margin-top: 40px;">
@@ -97,8 +150,8 @@
                     <th>Order Number</th>
                     <th>APN-ID</th>
                     <th>Specification</th>
-                    <th>Quantity</th>
-                    <th>Date & Time</th>
+                    <th>Planned Quantity</th>
+                    <th>Created Date</th>
                     <th>Directions</th>
                 </tr>
             </thead>
@@ -111,15 +164,110 @@
 {% block scripts %}
 <script>
     let history = [];
+    let allOrders = [];
 
     function fetchdata() {
-        fetch(`${url}/history`)
+        fetch(`/all_orders`)
             .then(res => res.json())
             .then(data => {
                 history = data.data;
+                allOrders = data.data;
                 displayHistory();
+                populateDropdowns(data.data);
             })
             .catch(console.error);
+    }
+
+    function populateDropdowns(data) {
+        const orderSelect = document.getElementById("orderSelect");
+        const apnSelect = document.getElementById("apnSelect");
+
+        // Populate order dropdown
+        const uniqueOrders = [...new Set(data.map(item => item.orderNumber))];
+        orderSelect.innerHTML = `<option value="">Select Order</option>`;
+        uniqueOrders.forEach(order => {
+            const opt = document.createElement("option");
+            opt.value = order;
+            opt.textContent = order;
+            orderSelect.appendChild(opt);
+        });
+
+        // Populate APN dropdown
+        const uniqueAPNs = [...new Set(data.map(item => item.apnID))];
+        apnSelect.innerHTML = `<option value="">Select APN-ID</option>`;
+        uniqueAPNs.forEach(apn => {
+            const opt = document.createElement("option");
+            opt.value = apn;
+            opt.textContent = apn;
+            apnSelect.appendChild(opt);
+        });
+
+        orderSelect.addEventListener("change", updateOrderDetails);
+        apnSelect.addEventListener("change", updateOrderDetails);
+    }
+
+    function updateOrderDetails() {
+        const selectedOrder = document.getElementById("orderSelect").value;
+        const selectedAPN = document.getElementById("apnSelect").value;
+
+        const matched = allOrders.find(
+            o => o.orderNumber === selectedOrder && o.apnID === selectedAPN
+        );
+
+        document.getElementById("specDisplay").textContent = matched?.specification || "N/A";
+        document.getElementById("plannedQtyDisplay").textContent = matched?.plannedQuantity || "N/A";
+    }
+
+    function updateDirections() {
+        const orderNumber = document.getElementById("orderSelect").value;
+        const apnID = document.getElementById("apnSelect").value;
+        const plannedQtyText = document.getElementById("plannedQtyDisplay").textContent;
+        const plannedQty = parseInt(plannedQtyText);
+
+        if (!orderNumber || !apnID) {
+            return alert("Please select both Order Number and APN-ID.");
+        }
+        if (isNaN(plannedQty) || plannedQty <= 0) {
+            return alert("Planned Quantity must be a positive number.");
+        }
+
+        // Get all checked directions
+        const checkedBoxes = document.querySelectorAll('input[name="direction"]:checked');
+        if (checkedBoxes.length === 0) {
+            return alert("Please select at least one direction.");
+        }
+
+        // Initialize payload directions with 0
+        const directions = ['top', 'bot', 'left', 'right', 'front', 'back'];
+        let payload = {
+            orderNumber,
+            apnID
+        };
+
+        // Set quantity for selected directions, 0 otherwise
+        directions.forEach(dir => {
+            payload[dir] = 0;
+        });
+
+        // Assign planned quantity to selected directions
+        checkedBoxes.forEach(box => {
+            payload[box.value] = plannedQty;
+        });
+
+        fetch(`/update_directions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(result => {
+            alert(result.message || result.error);
+            // Optionally refresh history after update
+            fetchdata();
+            // Clear checkboxes
+            checkedBoxes.forEach(box => box.checked = false);
+        })
+        .catch(console.error);
     }
 
     function displayHistory() {
@@ -127,19 +275,18 @@
         const body = document.getElementById("historyTableBody");
         table.style.display = "table";
         body.innerHTML = "";
-        
+
         history.forEach(record => {
-            const directions = Object.entries(record)
-                .filter(([key, value]) => ['top', 'bot', 'front', 'back', 'left', 'right'].includes(key) && value > 0)
-                .map(([key]) => key.charAt(0).toUpperCase() + key.slice(1))
-                .join(', ');
-            
+            const directions = ['top', 'bot', 'front', 'back', 'left', 'right']
+                .filter(dir => record[dir] > 0)
+                .join('-');
+
             const row = `<tr>
                 <td>${record.orderNumber}</td>
                 <td>${record.apnID}</td>
                 <td>${record.specification}</td>
-                <td>${record.quantityProduced}</td>
-                <td>${record.dateTime}</td>
+                <td>${record.plannedQuantity}</td>
+                <td>${record.createdDate}</td>
                 <td>${directions}</td>
             </tr>`;
             body.insertAdjacentHTML("beforeend", row);
@@ -150,8 +297,8 @@
         const dateFrom = document.getElementById("filterDateFrom").value;
         const dateTo = document.getElementById("filterDateTo").value;
         if (!dateTo && !dateFrom) return alert("Select a date to filter.");
-        
-        fetch(`${url}/history?dateFrom=${dateFrom}&dateTo=${dateTo}`)
+
+        fetch(`/history?dateFrom=${dateFrom}&dateTo=${dateTo}`)
             .then(res => res.json())
             .then(data => {
                 history = data.data;
@@ -160,7 +307,14 @@
             .catch(console.error);
     }
 
-    // Optional: load history on page load
-    // document.addEventListener('DOMContentLoaded', fetchdata);
+    document.addEventListener('DOMContentLoaded', function() {
+        fetchdata();
+
+        // Added this to fix submit button
+        document.getElementById("specForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+            updateDirections();
+        });
+    });
 </script>
 {% endblock %}
