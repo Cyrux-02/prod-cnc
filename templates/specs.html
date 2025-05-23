@@ -237,7 +237,7 @@
 
         // Assign planned quantity to selected directions
         checkedBoxes.forEach(box => {
-            payload[box.value] = plannedQty;
+            payload[box.value] = plannedQty  ;
         });
 
         fetch(`/update_directions`, {

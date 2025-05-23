@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Production Monitoring{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="section-header">
+        <h3>Production Monitoring</h3>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="monitoringTable">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>APN ID</th>
+                    <th>Planned Quantity</th>
+                    <th>Top</th>
+                    <th>Bottom</th>
+                    <th>Front</th>
+                    <th>Back</th>
+                    <th>Left</th>
+                    <th>Right</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>{{ order.order_id }}</td>
+                    <td>{{ order.apn_id }}</td>
+                    <td>{{ order.planned_quantity }}</td>
+                    <td class="{% if order.directions.Top == 0 %}completed{% endif %}">
+                        {{ order.directions.Top }}
+                    </td>
+                    <td class="{% if order.directions.Bottom == 0 %}completed{% endif %}">
+                        {{ order.directions.Bottom }}
+                    </td>
+                    <td class="{% if order.directions.Front == 0 %}completed{% endif %}">
+                        {{ order.directions.Front }}
+                    </td>
+                    <td class="{% if order.directions.Back == 0 %}completed{% endif %}">
+                        {{ order.directions.Back }}
+                    </td>
+                    <td class="{% if order.directions.Left == 0 %}completed{% endif %}">
+                        {{ order.directions.Left }}
+                    </td>
+                    <td class="{% if order.directions.Right == 0 %}completed{% endif %}">
+                        {{ order.directions.Right }}
+                    </td>
+                    <td>
+                        {% if (order.directions.Top == 0 or order.directions.Top == "N/A") and( order.directions.Bottom == 0 or order.directions.Bottom == "N/A") and 
+                           (order.directions.Front == 0 or order.directions.Front == "N/A") and (order.directions.Back == 0 or order.directions.Back == "N/A") and 
+                           (order.directions.Left == 0 or order.directions.Left == "N/A") and (order.directions.Right == 0 or order.directions.Right == "N/A") %}
+                        <span class="status-complete">Completed</span>
+                        {% else %}
+                        <span class="status-incomplete">In Progress</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .status-complete {
+        color: #4caf50;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-weight: 500;
+    }
+    
+    .status-incomplete {
+        color: #ffbf00;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-weight: 500;
+    }
+
+    .completed {
+        color: #4caf50;
+        font-weight: 500;
+    }
+
+    #monitoringTable td {
+        text-align: center;
+    }
+</style>
+
+<script>
+    // Auto-refresh when production is updated
+    window.addEventListener('productionUpdated', function() {
+        location.reload();
+    });
+
+</script>
+{% endblock %}

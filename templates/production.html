@@ -1,242 +1,361 @@
 {% extends "base.html" %}
 
-{% block title %}ATBU Production - Production Status{% endblock %}
+{% block title %}Production{% endblock %}
 
 {% block content %}
-<style>
-    .table-wrapper {
-        max-height: 400px;
-        overflow-y: auto;
-        border: 1px solid #ccc;
-    }
-
-    #productionTable {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-
-    #productionTable th, #productionTable td {
-        padding: 8px;
-        text-align: center;
-        border: 1px solid #ddd;
-    }
-</style>
-
 <div class="container">
-    <h2>Production Status</h2>
-
     <div class="section-header">
-        <h3>Production Entry Form</h3>
+        <h3>Production Entry</h3>
     </div>
 
-    <div class="production-form">
-        <form id="productionForm">
-            <label for="orderNumber">Order Number:</label>
-            <input type="text" id="orderNumber" required>
-
-            <label for="apnID">APN-ID:</label>
-            <input type="text" id="apnID" required>
-
-            <label for="specification">Specification:</label>
-            <select id="specification" required>
-                <option value="1">Main Part Serie Manufacturing</option>
-                <option value="2">Sub-Part Serie Manufacturing</option>
-                <option value="3">Main Part Proto Manufacturing</option>
-                <option value="4">Sub-Part Proto Manufacturing</option>
+    <form id="productionForm">
+        <div class="form-group">
+            <label for="orderSelect">Order Number:</label>
+            <select id="orderSelect" required>
+                <option value="">Select Order</option>
             </select>
+        </div>
 
-            <label for="quantity">Quantity Produced:</label>
-            <input type="number" id="quantity" min="1" required>
+        <div class="form-group">
+            <label for="apnSelect">APN ID:</label>
+            <select id="apnSelect" required disabled>
+                <option value="">Select APN ID</option>
+            </select>
+        </div>
 
-            <label>Direction:</label>
-            <div class="direction-container">
-                <label class="direction-box"><input type="checkbox" name="direction" value="Top"> Top</label>
-                <label class="direction-box"><input type="checkbox" name="direction" value="Bot"> Bot</label>
-                <label class="direction-box"><input type="checkbox" name="direction" value="Left"> Left</label>
-                <label class="direction-box"><input type="checkbox" name="direction" value="Right"> Right</label>
-                <label class="direction-box"><input type="checkbox" name="direction" value="Front"> Front</label>
-                <label class="direction-box"><input type="checkbox" name="direction" value="Back"> Back</label>
+        <div class="form-group">
+            <label for="specSelect">Specification:</label>
+            <select id="specSelect" required disabled>
+                <option value="">Select Specification</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Directions:</label>
+            <div class="direction-container" id="directionContainer">
+                <div class="direction-box">
+                    <input type="checkbox" id="dirTop" value="Top">
+                    <label for="dirTop">Top</label>
+                    <span class="remaining-qty" id="remainingTop"></span>
+                </div>
+                <div class="direction-box">
+                    <input type="checkbox" id="dirBot" value="Bot">
+                    <label for="dirBot">Bottom</label>
+                    <span class="remaining-qty" id="remainingBot"></span>
+                </div>
+                <div class="direction-box">
+                    <input type="checkbox" id="dirFront" value="Front">
+                    <label for="dirFront">Front</label>
+                    <span class="remaining-qty" id="remainingFront"></span>
+                </div>
+                <div class="direction-box">
+                    <input type="checkbox" id="dirBack" value="Back">
+                    <label for="dirBack">Back</label>
+                    <span class="remaining-qty" id="remainingBack"></span>
+                </div>
+                <div class="direction-box">
+                    <input type="checkbox" id="dirLeft" value="Left">
+                    <label for="dirLeft">Left</label>
+                    <span class="remaining-qty" id="remainingLeft"></span>
+                </div>
+                <div class="direction-box">
+                    <input type="checkbox" id="dirRight" value="Right">
+                    <label for="dirRight">Right</label>
+                    <span class="remaining-qty" id="remainingRight"></span>
+                </div>
             </div>
+        </div>
 
+        <div class="form-group">
+            <label for="quantity">Quantity Produced:</label>
+            <input type="number" id="quantity" required min="1">
+        </div>
+
+        <div class="form-group">
             <label for="machine">Machine:</label>
             <select id="machine" required>
-                <option value="VF2">VF2</option>
-                <option value="SM1">SM1</option>
-                <option value="SM2">SM2</option>
-                <option value="SM3">SM3</option>
+                <option value="">Select Machine</option>
+                <option value="VF2 SS">VF2 SS</option>
+                <option value="SM 1">SM 1</option>
+                <option value="SM 3">SM 2</option>
+                <option value="SM 4">SM 3</option>
             </select>
+        </div>
 
-            <button type="button" class="send-btn" onclick="submitForm()">Submit Production Entry</button>
-        </form>
-    </div>
+        <button type="submit" class="send-btn">Submit Production</button>
+    </form>
 
     <div class="section-header">
         <h3>Production History</h3>
     </div>
 
-    <div class="flex-between flex-col">
-        <div class="dateFilter">
-            <label>Filter by Date:</label>
-            <div class="date-inputs">
-                <div>
-                    <label for="filterDateFrom">From:</label>
-                    <input type="date" id="filterDateFrom">
-                </div>
-                <div>
-                    <label for="filterDateTo">To:</label>
-                    <input type="date" id="filterDateTo">
-                </div>
-            </div>
-            <div class="filter-actions">
-                <button onclick="fetchFilteredHistory()">Apply Filter</button>
-                <button onclick="fetchProductionHistory()" class="secondary-btn">Show All History</button>
-            </div>
-        </div>
-    </div>
-
     <div class="table-wrapper">
-        <table id="productionTable" style="display: none;">
+        <table id="productionTable">
             <thead>
                 <tr>
-                    <th>Order Number</th>
-                    <th>APN-ID</th>
-                    <th>Specification</th>
-                    <th>Quantity Produced</th>
-                    <th>Machine</th>
                     <th>Date & Time</th>
-                    <th>Top</th>
-                    <th>Bot</th>
-                    <th>Front</th>
-                    <th>Back</th>
-                    <th>Left</th>
-                    <th>Right</th>
+                    <th>Order</th>
+                    <th>APN ID</th>
+                    <th>Specification</th>
+                    <th>Quantity</th>
+                    <th>Directions</th>
+                    <th>Machine</th>
                 </tr>
             </thead>
-            <tbody id="productionTableBody"></tbody>
+            <tbody>
+            </tbody>
         </table>
     </div>
 </div>
+
+<style>
+    .remaining-qty {
+        margin-left: 8px;
+        color: #ff7b00;
+        font-size: 0.9em;
+    }
+    
+    .direction-box {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .direction-box input[type="checkbox"]:disabled + label {
+        color: #666;
+        text-decoration: line-through;
+    }
+</style>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-    function submitForm() {
-        const selectedDirections = Array.from(document.querySelectorAll('input[name="direction"]:checked'))
-            .map(el => el.value);
+    document.addEventListener('DOMContentLoaded', function() {
+        const productionForm = document.getElementById('productionForm');
+        const orderSelect = document.getElementById('orderSelect');
+        const apnSelect = document.getElementById('apnSelect');
+        const specSelect = document.getElementById('specSelect');
+        const quantityInput = document.getElementById('quantity');
+        
+        loadOrders();
+        loadProductionHistory();
 
-        const data = {
-            orderNumber: document.getElementById("orderNumber").value.trim(),
-            apnID: document.getElementById("apnID").value.trim(),
-            specification: document.getElementById("specification").value,
-            quantity: document.getElementById("quantity").value.trim(),
-            machine: document.getElementById("machine").value,
-            directions: selectedDirections
-        };
-
-        if (!data.orderNumber || !data.apnID || !data.specification || !data.quantity || !data.machine) {
-            alert("Please fill in all required fields");
-            return;
+        // Load orders into the select
+        async function loadOrders() {
+            try {
+                const response = await fetch(`${url}/api/orders`);
+                const data = await response.json();
+                
+                const uniqueOrders = [...new Set(data.data.map(order => order.orderNum))];
+                orderSelect.innerHTML = '<option value="">Select Order</option>';
+                uniqueOrders.forEach(order => {
+                    const option = document.createElement('option');
+                    option.value = order;
+                    option.textContent = order;
+                    orderSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading orders:', error);
+            }
         }
 
-        if (parseInt(data.quantity) <= 0) {
-            alert("Quantity must be greater than 0");
-            return;
-        }
-
-        fetch(`${url}/submit_production`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data)
-        })
-        .then(res => res.json())
-        .then(response => {
-            alert(response.message);
-            document.getElementById("productionForm").reset();
-            fetchProductionHistory();
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while submitting the production entry');
+        // When order is selected, load APNs for that order
+        orderSelect.addEventListener('change', async function() {
+            const selectedOrder = this.value;
+            apnSelect.disabled = !selectedOrder;
+            apnSelect.innerHTML = '<option value="">Select APN ID</option>';
+            specSelect.innerHTML = '<option value="">Select Specification</option>';
+            resetDirections();
+            
+            if (selectedOrder) {
+                try {
+                    const response = await fetch(`${url}/all_orders`);
+                    const data = await response.json();
+                    
+                    const orderData = data.data.filter(order => order.orderNumber === selectedOrder);
+                    const uniqueAPNs = [...new Set(orderData.map(order => order.apnID))];
+                    
+                    uniqueAPNs.forEach(apn => {
+                        const option = document.createElement('option');
+                        option.value = apn;
+                        option.textContent = apn;
+                        apnSelect.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error('Error loading APNs:', error);
+                }
+            }
         });
-    }
 
-    function fetchProductionHistory() {
-        fetch(`${url}/production_history`)
-            .then(res => res.json())
-            .then(data => {
-                const table = document.getElementById("productionTable");
-                const tbody = document.getElementById("productionTableBody");
-                tbody.innerHTML = "";
-
-                // Show the table if hidden
-                table.style.display = "table";
-
-                data.data.forEach(record => {
-                    const row = `<tr>
-                        <td>${record.orderNumber}</td>
-                        <td>${record.apnID}</td>
-                        <td>${record.specification}</td>
-                        <td>${record.quantityProduced}</td>
-                        <td>${record.machine}</td>
-                        <td>${record.dateTime}</td>
-                        <td>${record.top || 0}</td>
-                        <td>${record.bot || 0}</td>
-                        <td>${record.front || 0}</td>
-                        <td>${record.back || 0}</td>
-                        <td>${record.left || 0}</td>
-                        <td>${record.right || 0}</td>
-                    </tr>`;
-                    tbody.insertAdjacentHTML("beforeend", row);
-                });
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred while fetching production history');
+        function resetDirections() {
+            const directionInputs = document.querySelectorAll('#directionContainer input[type="checkbox"]');
+            directionInputs.forEach(input => {
+                input.checked = false;
+                input.disabled = false;
             });
-    }
-
-    function fetchFilteredHistory() {
-        const dateFrom = document.getElementById("filterDateFrom").value;
-        const dateTo = document.getElementById("filterDateTo").value;
-        if (!dateFrom && !dateTo) {
-            alert("Please select a date range");
-            return;
+            
+            document.querySelectorAll('.remaining-qty').forEach(span => {
+                span.textContent = '';
+            });
         }
 
-        fetch(`${url}/production_history?dateFrom=${dateFrom}&dateTo=${dateTo}`)
-            .then(res => res.json())
-            .then(data => {
-                const table = document.getElementById("productionTable");
-                const tbody = document.getElementById("productionTableBody");
-                tbody.innerHTML = "";
-                table.style.display = "table";
+        // When APN is selected, load specifications and update remaining quantities
+        apnSelect.addEventListener('change', async function() {
+            const selectedOrder = orderSelect.value;
+            const selectedAPN = this.value;
+            specSelect.disabled = !selectedAPN;
+            resetDirections();
+            
+            if (selectedOrder && selectedAPN) {
+                try {
+                    const response = await fetch(`${url}/all_orders`);
+                    const data = await response.json();
+                    
+                    const orderData = data.data.find(order => 
+                        order.orderNumber === selectedOrder && order.apnID === selectedAPN
+                    );
+                    
+                    if (orderData) {
+                        // Update remaining quantities display
+                        document.getElementById('remainingTop').textContent = orderData.top != null ? (orderData.top > 0 ? `(${orderData.top} remaining)` : '(completed)') : 'Not Applicable';
+                        document.getElementById('remainingBot').textContent = orderData.bot != null ? (orderData.bot > 0 ? `(${orderData.bot} remaining)` : '(completed)'): 'Not Applicable';
+                        document.getElementById('remainingFront').textContent = orderData.front != null ? (orderData.front > 0 ? `(${orderData.front} remaining)` : '(completed)'): 'Not Applicable';
+                        document.getElementById('remainingBack').textContent = orderData.back != null ? (orderData.back > 0 ? `(${orderData.back} remaining)` : '(completed)'): 'Not Applicable';
+                        document.getElementById('remainingLeft').textContent = orderData.left != null ? (orderData.left > 0 ? `(${orderData.left} remaining)` : '(completed)'): 'Not Applicable';
+                        document.getElementById('remainingRight').textContent = orderData.right != null ? (orderData.right > 0 ? `(${orderData.right} remaining)` : '(completed)'): 'Not Applicable';
+                        // Update TEXT COLOR
+                        document.getElementById('remainingTop').style.color = orderData.top != null ? (orderData.top > 0 ? `` : 'green') : 'gray';
+                        document.getElementById('remainingBot').style.color = orderData.bot != null ? (orderData.bot > 0 ? `` : 'green'): 'gray';
+                        document.getElementById('remainingFront').style.color = orderData.front != null ? (orderData.front > 0 ? `` : 'green'): 'gray';
+                        document.getElementById('remainingBack').style.color = orderData.back != null ? (orderData.back > 0 ? `` : 'green'): 'gray';
+                        document.getElementById('remainingLeft').style.color = orderData.left != null ? (orderData.left > 0 ? `` : 'green'): 'gray';
+                        document.getElementById('remainingRight').style.color = orderData.right != null ? (orderData.right > 0 ? `` : 'green'): 'gray';
+                        
+                        // Disable checkboxes and add style for completed directions
+                        document.getElementById('dirTop').disabled = orderData.top == null || orderData.top === 0  ;
+                        document.getElementById('dirBot').disabled = orderData.bot == null || orderData.bot === 0;
+                        document.getElementById('dirFront').disabled = orderData.front == null || orderData.front === 0;
+                        document.getElementById('dirBack').disabled = orderData.back == null || orderData.back === 0;
+                        document.getElementById('dirLeft').disabled = orderData.left == null || orderData.left === 0;
+                        document.getElementById('dirRight').disabled = orderData.right == null || orderData.right === 0;
+                        
+                        // Set specification
+                        specSelect.innerHTML = `<option value="${orderData.specification}">${orderData.specification}</option>`;
 
+                        // Set max quantity based on remaining quantities
+                        const maxQuantity = Math.max(
+                            orderData.top || 0,
+                            orderData.bot || 0,
+                            orderData.front || 0,
+                            orderData.back || 0,
+                            orderData.left || 0,
+                            orderData.right || 0
+                        );
+                        quantityInput.max = maxQuantity;
+                        quantityInput.placeholder = `Max: ${maxQuantity}`;
+                    }
+                } catch (error) {
+                    console.error('Error loading specifications:', error);
+                }
+            }
+        });
+
+        // Validate quantity against remaining quantities
+        quantityInput.addEventListener('input', function() {
+            const value = parseInt(this.value);
+            const max = parseInt(this.max);
+            
+            if (value > max) {
+                alert(`Quantity cannot exceed the remaining quantity (${max})`);
+                this.value = max;
+            }
+        });
+
+        // Handle form submission
+        productionForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const selectedDirections = Array.from(document.querySelectorAll('#directionContainer input[type="checkbox"]:checked'))
+                .map(cb => cb.value);
+            
+            if (selectedDirections.length === 0) {
+                alert('Please select at least one direction');
+                return;
+            }
+            
+            const formData = {
+                orderNumber: orderSelect.value,
+                apnID: apnSelect.value,
+                specification: specSelect.value,
+                quantity: document.getElementById('quantity').value,
+                machine: document.getElementById('machine').value,
+                directions: selectedDirections
+            };
+            
+            try {
+                const response = await fetch(`${url}/submit_production`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    alert('Production submitted successfully');
+                    productionForm.reset();
+                    apnSelect.disabled = true;
+                    specSelect.disabled = true;
+                    resetDirections();
+                    loadProductionHistory();
+                    
+                    // Trigger a refresh of the monitoring page data
+                    window.dispatchEvent(new CustomEvent('productionUpdated'));
+                } else {
+                    alert(result.error || 'Error submitting production');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error submitting production');
+            }
+        });
+
+        // Load production history
+        async function loadProductionHistory() {
+            try {
+                const response = await fetch(`${url}/production_history`);
+                const data = await response.json();
+                
+                const tbody = document.querySelector('#productionTable tbody');
+                tbody.innerHTML = '';
+                
                 data.data.forEach(record => {
-                    const row = `<tr>
+                    const directions = [];
+                    if (record.top) directions.push('Top');
+                    if (record.bot) directions.push('Bottom');
+                    if (record.front) directions.push('Front');
+                    if (record.back) directions.push('Back');
+                    if (record.left) directions.push('Left');
+                    if (record.right) directions.push('Right');
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${record.dateTime}</td>
                         <td>${record.orderNumber}</td>
                         <td>${record.apnID}</td>
                         <td>${record.specification}</td>
                         <td>${record.quantityProduced}</td>
+                        <td>${directions.join(', ')}</td>
                         <td>${record.machine}</td>
-                        <td>${record.dateTime}</td>
-                        <td>${record.top || 0}</td>
-                        <td>${record.bot || 0}</td>
-                        <td>${record.front || 0}</td>
-                        <td>${record.back || 0}</td>
-                        <td>${record.left || 0}</td>
-                        <td>${record.right || 0}</td>
-                    </tr>`;
-                    tbody.insertAdjacentHTML("beforeend", row);
+                    `;
+                    tbody.appendChild(row);
                 });
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred while filtering production history');
-            });
-    }
-
-    // Optional: Auto-load history on page load
-    // document.addEventListener('DOMContentLoaded', fetchProductionHistory);
+            } catch (error) {
+                console.error('Error loading production history:', error);
+            }
+        }
+    });
 </script>
 {% endblock %}
