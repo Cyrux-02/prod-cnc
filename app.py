@@ -39,21 +39,6 @@ def monitoring():
     
     try:
         cursor = conn.cursor(dictionary=True)
-        query = """
-            SELECT 
-				apn,
-                `order`,
-                sum(top) as prTop,
-                sum(bot) as prBot,
-                sum(front) as prFront,
-                sum(back) as prBack,
-                sum(`left`) as prLeft,
-                sum(`right`) as prRight
-            FROM production
-            group by `order`, apn
-        """
-        cursor.execute(query)
-        prodRessults = cursor.fetchall()
         
         query = """
             SELECT 
@@ -72,23 +57,21 @@ def monitoring():
         results = cursor.fetchall()
         orders = []
         for row in results:
-            for prodRecord in prodRessults:
-                if prodRecord['order'] == row['order_id'] and prodRecord['apn'] == row['apn_id']:
-                    directions = {
-                        'Top': row['planned_quantity'] - prodRecord['prTop'] if row['top'] is not None else "N/A",
-                        'Bottom': row['planned_quantity'] - prodRecord['prBot'] if row['bot'] is not None else "N/A",
-                        'Front': row['planned_quantity'] - prodRecord['prFront'] if row['front'] is not None else "N/A",
-                        'Back': row['planned_quantity'] - prodRecord['prBack'] if row['back'] is not None else "N/A",
-                        'Left': row['planned_quantity'] - prodRecord['prLeft'] if row['left'] is not None else "N/A",
-                        'Right': row['planned_quantity'] - prodRecord['prRight'] if row['right'] is not None else "N/A"
-                    }
-                    orders.append({
-                        'order_id': row['order_id'],
-                        'apn_id': row['apn_id'],
-                        'planned_quantity': row['planned_quantity'],
-                        'directions': directions,
-                    })
-                    break
+            directions = {
+                'Top': row['top'] if row['top'] is not None else "N/A",
+                'Bottom': row['bot'] if row['bot'] is not None else "N/A",
+                'Front': row['front'] if row['front'] is not None else "N/A",
+                'Back': row['back'] if row['back'] is not None else "N/A",
+                'Left': row['left'] if row['left'] is not None else "N/A",
+                'Right': row['right'] if row['right'] is not None else "N/A"
+            }
+            orders.append({
+                'order_id': row['order_id'],
+                'apn_id': row['apn_id'],
+                'planned_quantity': row['planned_quantity'],
+                'directions': directions,
+            })
+                    
         return render_template('monitoring.html', orders=orders)
     except Exception as e:
         print("Error:", e)
@@ -260,18 +243,18 @@ def submit_production():
     try:
         data = request.get_json()
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
         required = ["orderNumber", "apnID", "specification", "quantity", "machine"]
         missing = [f for f in required if f not in data or not str(data[f]).strip()]
         if missing:
             return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
-
+        
         quantity = int(data.get("quantity", 0))
         if quantity <= 0:
             return jsonify({"error": "Quantity must be greater than 0"}), 400
-
+        
         directions = data.get("directions", [])
-
+        if not directions:
+            return jsonify({"error": "At least one direction must be selected"}), 400
         direction_map = {
             "Top": "top",
             "Bot": "bot",
@@ -282,67 +265,85 @@ def submit_production():
         }
 
         direction_values = {col: 0 for col in direction_map.values()}
-        
         if directions:
             for d in directions:
                 col = direction_map.get(d)
                 if col:
-                    direction_values[col] = quantity        
-        query = """
-            INSERT INTO production (
-                `order`, apn, specification, quantity, machine,
-                top, bot, front, back, `left`, `right`, createdDate
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """
-        values = (
-            data["orderNumber"],
-            data["apnID"],
-            data["specification"],
-            quantity,
-            data["machine"],
-            direction_values["top"],
-            direction_values["bot"],
-            direction_values["front"],
-            direction_values["back"],
-            direction_values["left"],
-            direction_values["right"],
-            timestamp
-        )
-        with conn.cursor() as cursor:
-            cursor.execute(query, values)
-            
-            # Then update the orders_library table to subtract the produced quantities
-            update_query = """
-                UPDATE orders_library 
-                SET 
-                    top = CASE WHEN top > 0 THEN GREATEST(top - %s, 0) ELSE top END,
-                    bot = CASE WHEN bot > 0 THEN GREATEST(bot - %s, 0) ELSE bot END,
-                    front = CASE WHEN front > 0 THEN GREATEST(front - %s, 0) ELSE front END,
-                    back = CASE WHEN back > 0 THEN GREATEST(back - %s, 0) ELSE back END,
-                    `left` = CASE WHEN `left` > 0 THEN GREATEST(`left` - %s, 0) ELSE `left` END,
-                    `right` = CASE WHEN `right` > 0 THEN GREATEST(`right` - %s, 0) ELSE `right` END
+                    direction_values[col] = quantity
+        with conn.cursor(dictionary=True) as cursor:
+            # Check available quantities
+            check_query = """
+                SELECT top, bot, front, back, `left`, `right`
+                FROM orders_library
                 WHERE orderNum = %s AND apnID = %s
             """
+            cursor.execute(check_query, (data["orderNumber"], data["apnID"]))
+            available = cursor.fetchone()
+            # Ensure all results are read before next execute
+            while cursor.nextset():
+                pass
             
-            update_values = (
+            if not available:
+                return jsonify({"error": "Order not found in database"}), 404
+
+            # Verify quantities don't exceed available
+            for direction, produced_qty in direction_values.items():
+                if available[direction] is not None and produced_qty > available[direction]:
+                    return jsonify({
+                        "error": f"Quantity for '{direction}' ({produced_qty}) exceeds available quantity ({available[direction]})"
+                    }), 400
+
+            # Insert production record
+            insert_query = """
+                INSERT INTO production (
+                    `order`, apn, specification, quantity, machine,
+                    top, bot, front, back, `left`, `right`, createdDate
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            insert_values = (
+                data["orderNumber"],
+                data["apnID"],
+                data["specification"],
+                quantity,
+                data["machine"],
                 direction_values["top"],
                 direction_values["bot"],
                 direction_values["front"],
                 direction_values["back"],
                 direction_values["left"],
                 direction_values["right"],
-                data["orderNumber"],
-                data["apnID"]
+                timestamp
             )
+            cursor.execute(insert_query, insert_values)
+
+            conn.commit()
             
-            cursor.execute(update_query, update_values)
+            # Dynamically build the update query and values to match only non-None directions
+            update_fields = []
+            update_values = []
+            for direction in ["top", "bot", "front", "back", "left", "right"]:
+                if available[direction] is not None:
+                    field = f"`{direction}`" if direction in ["left", "right"] else direction
+                    update_fields.append(f"{field} = {field} - %s")
+                    update_values.append(direction_values[direction])
+            update_query = f"""
+                UPDATE orders_library SET
+                {', '.join(update_fields)}
+                WHERE orderNum = %s AND apnID = %s
+            """
+            update_values.extend([data["orderNumber"], data["apnID"]])
+            cursor.execute(update_query, tuple(update_values))
             conn.commit()
 
-        return jsonify({"message": "Production submitted and quantities updated successfully."})
+            return jsonify({"message": "Production submitted successfully"})
+    
     except Exception as e:
+        print("Error:", e)  # Log the error for debugging
         return jsonify({"error": str(e)}), 500
+    
     finally:
-        conn.close()
+        if conn:
+            conn.close()       
 
 @app.route('/update_directions', methods=['POST'])
 def update_directions():
@@ -403,6 +404,53 @@ def update_directions():
     finally:
         conn.close()
 
+@app.route('/get_remaining_quantities', methods=['GET'])
+def get_remaining_quantities():
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database connection error"}), 500
+
+    try:
+        order_num = request.args.get('orderNum')
+        apn_id = request.args.get('apnID')
+
+        if not order_num or not apn_id:
+            return jsonify({"error": "Order number and APN ID are required"}), 400
+
+        query = """
+            SELECT 
+                ol.orderNum,
+                ol.apnID,
+                ol.planned_quantity,
+                ol.top - COALESCE(SUM(p.top), 0) as top,
+                ol.bot - COALESCE(SUM(p.bot), 0) as bot,
+                ol.front - COALESCE(SUM(p.front), 0) as front,
+                ol.back - COALESCE(SUM(p.back), 0) as back,
+                ol.`left` - COALESCE(SUM(p.`left`), 0) as `left`,
+                ol.`right` - COALESCE(SUM(p.`right`), 0) as `right`,
+                ol.specification
+            FROM orders_library ol
+            LEFT JOIN production p ON ol.orderNum = p.`order` AND ol.apnID = p.apn
+            WHERE ol.orderNum = %s AND ol.apnID = %s
+            GROUP BY ol.orderNum, ol.apnID, ol.planned_quantity, ol.top, ol.bot, 
+                     ol.front, ol.back, ol.`left`, ol.`right`, ol.specification
+        """
+
+        with conn.cursor(dictionary=True) as cursor:
+            cursor.execute(query, (order_num, apn_id))
+            result = cursor.fetchone()
+            
+            if not result:
+                return jsonify({"error": "Order not found"}), 404
+                
+            return jsonify(result)
+
+    except Exception as e:
+        print("Error:", e)
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
 @app.route('/api/orders')
 def get_orders():
     conn = get_db_connection()
@@ -434,4 +482,4 @@ def get_orders():
         conn.close()
 
 if __name__ == '__main__':
-    app.run(host='169.254.103.79', port=5500)
+    app.run(host='169.254.103.79', port=5000)

@@ -34,7 +34,7 @@
             <label>Directions:</label>
             <div class="direction-container" id="directionContainer">
                 <div class="direction-box">
-                    <input type="checkbox" id="dirTop" value="Top">
+                    <input type="checkbox" id="dirTop"  value="Top">
                     <label for="dirTop">Top</label>
                     <span class="remaining-qty" id="remainingTop"></span>
                 </div>
@@ -137,6 +137,8 @@
         const apnSelect = document.getElementById('apnSelect');
         const specSelect = document.getElementById('specSelect');
         const quantityInput = document.getElementById('quantity');
+        const directionInputs = document.querySelectorAll('#directionContainer input[type="checkbox"]');
+        let orderData = null;
         
         loadOrders();
         loadProductionHistory();
@@ -212,7 +214,7 @@
                     const response = await fetch(`${url}/all_orders`);
                     const data = await response.json();
                     
-                    const orderData = data.data.find(order => 
+                    orderData = data.data.find(order => 
                         order.orderNumber === selectedOrder && order.apnID === selectedAPN
                     );
                     
@@ -244,6 +246,8 @@
                         specSelect.innerHTML = `<option value="${orderData.specification}">${orderData.specification}</option>`;
 
                         // Set max quantity based on remaining quantities
+                        const selectedDirections = Array.from(document.querySelectorAll('#directionContainer input[type="checkbox"]:checked'))
+                        .map(cb => cb.value);
                         const maxQuantity = Math.max(
                             orderData.top || 0,
                             orderData.bot || 0,
@@ -265,13 +269,28 @@
         quantityInput.addEventListener('input', function() {
             const value = parseInt(this.value);
             const max = parseInt(this.max);
-            
+
             if (value > max) {
-                alert(`Quantity cannot exceed the remaining quantity (${max})`);
+                //alert(`Quantity cannot exceed the remaining quantity (${max})`);
                 this.value = max;
             }
         });
 
+        directionInputs.forEach(input => {
+            input.addEventListener('change', async function() {
+            const selectedDirections = Array.from(document.querySelectorAll('#directionContainer input[type="checkbox"]:checked'))
+                .map(cb => cb.value);
+            
+            // Update quantity max based on selected directions
+            const maxQuantity = selectedDirections.reduce((max, dir) => {
+                const remainingQty = orderData ? orderData[dir.toLowerCase()] : 0;
+                return Math.min(max, remainingQty);
+            }, Infinity);
+            quantityInput.max = maxQuantity;
+            quantityInput.placeholder = `Max: ${maxQuantity}`;
+
+             })
+        });
         // Handle form submission
         productionForm.addEventListener('submit', async function(e) {
             e.preventDefault();
