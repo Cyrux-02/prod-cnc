@@ -16,7 +16,8 @@
                     <input type="text" id="orderNumber" required>
 
                     <label for="apnID">APN-ID:</label>
-                    <input type="text" id="apnID" required>
+                    <input type="text" id="apnID" required>                    <label for="specs">Spec:</label>
+                    <input type="text" id="specs" required>
 
                     <label for="specification">Specification:</label>
                     <select id="specification" required>
@@ -45,6 +46,7 @@
                     <tr>
                         <th>Order Number</th>
                         <th>APN-ID</th>
+                        <th>Spec</th>
                         <th>Specification</th>
                         <th>Planned Quantity</th>
                         <th>Created Date</th>
@@ -68,11 +70,12 @@
         const data = {
             orderNumber: document.getElementById("orderNumber").value,
             apnID: document.getElementById("apnID").value,
+            specs: document.getElementById("specs").value,
             specification: document.getElementById("specification").value,
             plannedQuantity: document.getElementById("plannedQuantity").value,
         };
 
-        if (!data.orderNumber || !data.apnID || !data.specification || !data.plannedQuantity) {
+        if (!data.orderNumber || !data.apnID ||!data.specs || !data.specification || !data.plannedQuantity) {
             alert("Please fill in all required fields");
             return;
         }
@@ -96,8 +99,7 @@
 
     function loadOrders() {
         fetch(`${url}/all_orders`)
-            .then(res => res.json())
-            .then(response => {
+            .then(res => res.json())            .then(response => {
                 const tbody = document.getElementById("ordersTableBody");
                 tbody.innerHTML = "";
 
@@ -105,6 +107,7 @@
                     const row = `<tr>
                         <td class="order-number" style="cursor:pointer; color: green; text-decoration: underline;">${order.orderNumber}</td>
                         <td class="apn-id" style="cursor:pointer; color: green; text-decoration: underline;">${order.apnID}</td>
+                        <td class="Spec" style="cursor:pointer; color: green; text-decoration: underline;">${order.specs}</td>
                         <td>${order.specification}</td>
                         <td>${order.plannedQuantity}</td>
                         <td>${order.createdDate}</td>
@@ -125,17 +128,24 @@
                         showApnDetails(cell);
                     });
                 });
+
+                // Attach click event for Spec details popup
+                document.querySelectorAll("#ordersTableBody .Spec").forEach(cell => {
+                    cell.addEventListener("click", () => {
+                        showSpecDetails(cell);
+                    });
+                });
             })
             .catch(console.error);
-    }
-
-    function filterByOrder(orderNumber) {
+            
+    }    function filterByOrder(value) {
         const tbody = document.getElementById("ordersTableBody");
         const rows = tbody.getElementsByTagName("tr");
 
         for (let row of rows) {
-            const cellOrder = row.cells[0].textContent || row.cells[0].innerText;
-            if (cellOrder === orderNumber) {
+            const orderCell = row.cells[0].textContent || row.cells[0].innerText;
+            const specCell = row.cells[2].textContent || row.cells[2].innerText;
+            if (orderCell === value || specCell === value) {
                 row.style.display = "";
             } else {
                 row.style.display = "none";
@@ -174,6 +184,16 @@
         const createdDate = row.cells[4].textContent || row.cells[4].innerText;
 
         alert(`APN-ID: ${cell.textContent}\nSpecification: ${spec}\nPlanned Quantity: ${plannedQty}\nCreated Date: ${createdDate}`);
+    }
+
+    function showSpecDetails(cell) {
+        const row = cell.parentElement;
+        const orderNumber = row.cells[0].textContent;
+        const apnId = row.cells[1].textContent;
+        const plannedQty = row.cells[4].textContent;
+        const createdDate = row.cells[5].textContent;
+
+        alert(`Spec: ${cell.textContent}\nOrder Number: ${orderNumber}\nAPN-ID: ${apnId}\nPlanned Quantity: ${plannedQty}\nCreated Date: ${createdDate}`);
     }
 
 </script>

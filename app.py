@@ -89,6 +89,7 @@ def add_order_to_library():
         data = request.get_json()
         order_number = data["orderNumber"]
         apn_id = data["apnID"]
+        Spec = data["specs"]
         specification = data["specification"]
         planned_quantity = int(data["plannedQuantity"])
         directions = data.get("directions", [])
@@ -113,14 +114,15 @@ def add_order_to_library():
 
         query = """
             INSERT INTO orders_library (
-                orderNum, apnID, specification, planned_quantity,
+                orderNum, apnID,specs, specification, planned_quantity,
                 top, bot, front, back, `left`, `right`, createdDate
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
 
         values = (
             order_number,
             apn_id,
+            Spec,
             specification,
             planned_quantity,
             direction_values["top"],
@@ -150,7 +152,7 @@ def all_orders():
 
     try:
         query = """
-            SELECT ol.orderNum, ol.apnID, s.name, ol.planned_quantity,
+            SELECT ol.orderNum, ol.apnID,ol.specs, s.name, ol.planned_quantity,
                    ol.createdDate, ol.top, ol.bot, ol.front, ol.back,
                    ol.left, ol.right
             FROM orders_library ol
@@ -163,12 +165,13 @@ def all_orders():
 
         data_list = []
         for row in results:
-            (orderNum, apnID, specName, plannedQty, createdDate,
+            (orderNum, apnID,specs, specName, plannedQty, createdDate,
              top, bot, front, back, left, right) = row
             
             data_list.append({
                 "orderNumber": orderNum,
                 "apnID": apnID,
+                "specs": specs,
                 "specification": specName,
                 "plannedQuantity": plannedQty,
                 "createdDate": createdDate.strftime("%Y-%m-%d %H:%M:%S") if hasattr(createdDate, "strftime") else str(createdDate),
@@ -198,10 +201,12 @@ def production_history():
 
     try:
         query = """
-            SELECT pr.order, pr.apn, specification, pr.quantity,
+            SELECT pr.order, pr.apn, pr.specification, pr.quantity,
                    pr.machine, pr.createdDate,
-                   pr.top, pr.bot, pr.front, pr.back, pr.left, pr.right
-            FROM production pr
+                   pr.top, pr.bot, pr.front, pr.back, pr.left, pr.right,
+                   ol.specs
+            FROM production pr, orders_library ol
+            WHERE pr.order = ol.orderNum AND pr.apn = ol.apnID
         """
 
         with conn.cursor() as cursor:
@@ -211,7 +216,7 @@ def production_history():
         data_list = []
         for row in results:
             (orderNum, apnID, specName, quantity, machine, createdDate,
-             top, bot, front, back, left, right) = row
+             top, bot, front, back, left, right, specs) = row
 
             data_list.append({
                 "orderNumber": orderNum,
@@ -225,7 +230,8 @@ def production_history():
                 "front": front,
                 "back": back,
                 "left": left,
-                "right": right
+                "right": right,
+                "specs": specs
             })
 
         return jsonify({"data": data_list})

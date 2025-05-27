@@ -14,9 +14,7 @@
             <select id="orderSelect" required>
                 <option value="">Select Order</option>
             </select>
-        </div>
-
-        <div class="form-group">
+        </div>        <div class="form-group">
             <label for="apnSelect">APN ID:</label>
             <select id="apnSelect" required disabled>
                 <option value="">Select APN ID</option>
@@ -24,10 +22,11 @@
         </div>
 
         <div class="form-group">
-            <label for="specSelect">Specification:</label>
-            <select id="specSelect" required disabled>
-                <option value="">Select Specification</option>
-            </select>
+            <div id="orderDetails" style="background: rgba(26, 29, 33, 0.5); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                <p><strong>Specification:</strong> <span id="specificationDisplay">N/A</span></p>
+                <p><strong>Planned Quantity:</strong> <span id="plannedQtyDisplay">N/A</span></p>
+                <p><strong>Spec:</strong> <span id="specDisplay">N/A</span></p>
+            </div>
         </div>
 
         <div class="form-group">
@@ -91,8 +90,7 @@
 
     <div class="table-wrapper">
         <table id="productionTable">
-            <thead>
-                <tr>
+            <thead>                <tr>
                     <th>Date & Time</th>
                     <th>Order</th>
                     <th>APN ID</th>
@@ -100,6 +98,7 @@
                     <th>Quantity</th>
                     <th>Directions</th>
                     <th>Machine</th>
+                    <th>Spec</th>
                 </tr>
             </thead>
             <tbody>
@@ -131,11 +130,9 @@
 
 {% block scripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const productionForm = document.getElementById('productionForm');
+    document.addEventListener('DOMContentLoaded', function() {        const productionForm = document.getElementById('productionForm');
         const orderSelect = document.getElementById('orderSelect');
         const apnSelect = document.getElementById('apnSelect');
-        const specSelect = document.getElementById('specSelect');
         const quantityInput = document.getElementById('quantity');
         const directionInputs = document.querySelectorAll('#directionContainer input[type="checkbox"]');
         let orderData = null;
@@ -148,7 +145,6 @@
             try {
                 const response = await fetch(`${url}/api/orders`);
                 const data = await response.json();
-                
                 const uniqueOrders = [...new Set(data.data.map(order => order.orderNum))];
                 orderSelect.innerHTML = '<option value="">Select Order</option>';
                 uniqueOrders.forEach(order => {
@@ -164,10 +160,8 @@
 
         // When order is selected, load APNs for that order
         orderSelect.addEventListener('change', async function() {
-            const selectedOrder = this.value;
-            apnSelect.disabled = !selectedOrder;
+            const selectedOrder = this.value;            apnSelect.disabled = !selectedOrder;
             apnSelect.innerHTML = '<option value="">Select APN ID</option>';
-            specSelect.innerHTML = '<option value="">Select Specification</option>';
             resetDirections();
             
             if (selectedOrder) {
@@ -205,9 +199,7 @@
         // When APN is selected, load specifications and update remaining quantities
         apnSelect.addEventListener('change', async function() {
             const selectedOrder = orderSelect.value;
-            const selectedAPN = this.value;
-            specSelect.disabled = !selectedAPN;
-            resetDirections();
+            const selectedAPN = this.value;            resetDirections();
             
             if (selectedOrder && selectedAPN) {
                 try {
@@ -241,9 +233,10 @@
                         document.getElementById('dirBack').disabled = orderData.back == null || orderData.back === 0;
                         document.getElementById('dirLeft').disabled = orderData.left == null || orderData.left === 0;
                         document.getElementById('dirRight').disabled = orderData.right == null || orderData.right === 0;
-                        
-                        // Set specification
-                        specSelect.innerHTML = `<option value="${orderData.specification}">${orderData.specification}</option>`;
+                          // Update specification display
+                        document.getElementById('specificationDisplay').textContent = orderData.specification || "N/A";
+                        document.getElementById('plannedQtyDisplay').textContent = orderData.plannedQuantity || "N/A";
+                        document.getElementById('specDisplay').textContent = orderData.specs || "N/A";
 
                         // Set max quantity based on remaining quantities
                         const selectedDirections = Array.from(document.querySelectorAll('#directionContainer input[type="checkbox"]:checked'))
@@ -302,12 +295,12 @@
                 alert('Please select at least one direction');
                 return;
             }
-            
-            const formData = {
+              const formData = {
                 orderNumber: orderSelect.value,
                 apnID: apnSelect.value,
-                specification: specSelect.value,
-                quantity: document.getElementById('quantity').value,
+                specification: document.getElementById('specificationDisplay').textContent,
+                specs: document.getElementById('specDisplay').textContent,
+                quantity: parseInt(document.getElementById('quantity').value),
                 machine: document.getElementById('machine').value,
                 directions: selectedDirections
             };
@@ -323,10 +316,11 @@
                 
                 const result = await response.json();
                 if (response.ok) {
-                    alert('Production submitted successfully');
-                    productionForm.reset();
+                    alert('Production submitted successfully');                    productionForm.reset();
                     apnSelect.disabled = true;
-                    specSelect.disabled = true;
+                    document.getElementById('specificationDisplay').textContent = 'N/A';
+                    document.getElementById('plannedQtyDisplay').textContent = 'N/A';
+                    document.getElementById('specDisplay').textContent = 'N/A';
                     resetDirections();
                     loadProductionHistory();
                     
@@ -368,6 +362,7 @@
                         <td>${record.quantityProduced}</td>
                         <td>${directions.join(', ')}</td>
                         <td>${record.machine}</td>
+                        <td>${record.specs ?? "N/A"}</td>
                     `;
                     tbody.appendChild(row);
                 });

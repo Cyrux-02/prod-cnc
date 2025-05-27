@@ -83,6 +83,7 @@
         <div id="orderDetails">
             <p><strong>Specification:</strong> <span id="specDisplay">N/A</span></p>
             <p><strong>Planned Quantity:</strong> <span id="plannedQtyDisplay">N/A</span></p>
+            <p><strong>planned Spec:</strong> <span id="plannedspecsDisplay">N/A</span></p>
         </div>
 
         <div class="direction-checkboxes">
@@ -202,6 +203,7 @@
 
         document.getElementById("specDisplay").textContent = matched?.specification || "N/A";
         document.getElementById("plannedQtyDisplay").textContent = matched?.plannedQuantity || "N/A";
+        document.getElementById("plannedspecsDisplay").textContent = matched?.specs || "N/A";
     }
 
     function updateDirections() {
@@ -270,6 +272,7 @@
             const row = `<tr>
                 <td>${record.orderNumber}</td>
                 <td>${record.apnID}</td>
+                <td>${record.specs}</td>
                 <td>${record.specification}</td>
                 <td>${record.plannedQuantity}</td>
                 <td>${record.createdDate}</td>

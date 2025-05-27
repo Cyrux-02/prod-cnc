@@ -15,6 +15,7 @@
                     <th>Order ID</th>
                     <th>APN ID</th>
                     <th>Planned Quantity</th>
+                    <th>Spec</th>
                     <th>Top</th>
                     <th>Bottom</th>
                     <th>Front</th>
@@ -30,6 +31,7 @@
                     <td>{{ order.order_id }}</td>
                     <td>{{ order.apn_id }}</td>
                     <td>{{ order.planned_quantity }}</td>
+                    <td>{{ order.specs }}</td>
                     <td class="{% if order.directions.Top == 0 %}completed{% endif %}">
                         {{ order.directions.Top }}
                     </td>
