@@ -10,12 +10,12 @@
 
     <div class="table-wrapper">
         <table id="monitoringTable">
-            <thead>
-                <tr>
+            <thead>                    <tr>
                     <th>Order ID</th>
                     <th>APN ID</th>
                     <th>Planned Quantity</th>
                     <th>Spec</th>
+                    <th>Specification</th>
                     <th>Top</th>
                     <th>Bottom</th>
                     <th>Front</th>
@@ -27,11 +27,11 @@
             </thead>
             <tbody>
                 {% for order in orders %}
-                <tr>
-                    <td>{{ order.order_id }}</td>
+                <tr>                    <td>{{ order.order_id }}</td>
                     <td>{{ order.apn_id }}</td>
                     <td>{{ order.planned_quantity }}</td>
                     <td>{{ order.specs }}</td>
+                    <td>{{ order.specification }}</td>
                     <td class="{% if order.directions.Top == 0 %}completed{% endif %}">
                         {{ order.directions.Top }}
                     </td>
@@ -85,14 +85,111 @@
         color: #4caf50;
         font-weight: 500;
     }
-   
-    #monitoringTable td {
+     #monitoringTable {
         width: 100%;
+        table-layout: fixed;
+        border-collapse: collapse;
+    }    #monitoringTable th,
+    #monitoringTable td {
+        width: 6%; /* Base width for direction columns */
+        text-align: center;
+        padding: 8px;
+        white-space: normal; /* Allow text wrapping */
+        overflow: visible; /* Show overflow content */
+        word-wrap: break-word; /* Break long words if needed */
+        min-height: 40px; /* Minimum height for cells */
+        height: auto; /* Allow height to grow */
+        vertical-align: middle; /* Center content vertically */
+        border: 1px solid #2c2f35;
+    }
+
+    /* Custom column widths */
+    #monitoringTable th:nth-child(1),
+    #monitoringTable td:nth-child(1) {
+        width: 9%; /* Order ID */
+    }
+    #monitoringTable th:nth-child(2),
+    #monitoringTable td:nth-child(2) {
+        width: 9%; /* APN ID */
+    }
+    #monitoringTable th:nth-child(3),
+    #monitoringTable td:nth-child(3) {
+        width: 7%; /* Planned Quantity */
+    }
+    #monitoringTable th:nth-child(4),
+    #monitoringTable td:nth-child(4) {
+        width: 10%; /* Spec */
+    }
+    #monitoringTable th:nth-child(5),
+    #monitoringTable td:nth-child(5) {
+        width: 10%; /* Specification */
+    }
+
+    /* Give more space to important columns */
+    #monitoringTable th:nth-child(1),
+    #monitoringTable td:nth-child(1) {
+        width: 9%; /* Order ID */
+    }
+
+    #monitoringTable th:nth-child(2),
+    #monitoringTable td:nth-child(2) {
+        width: 9%; /* APN ID */
+    }
+
+    #monitoringTable th:nth-child(3),
+    #monitoringTable td:nth-child(3) {
+        width: 7%; /* Planned Quantity */
+    }
+
+    #monitoringTable th:nth-child(4),
+    #monitoringTable td:nth-child(4) {
+        width: 10%; /* Spec */
+    }
+
+    #monitoringTable th:nth-child(5),
+    #monitoringTable td:nth-child(5) {
+        width: 10%; /* Specification */
+    }
+
+    /* Direction columns */
+    #monitoringTable th:nth-child(6),
+    #monitoringTable td:nth-child(6),
+    #monitoringTable th:nth-child(7),
+    #monitoringTable td:nth-child(7),
+    #monitoringTable th:nth-child(8),
+    #monitoringTable td:nth-child(8),
+    #monitoringTable th:nth-child(9),
+    #monitoringTable td:nth-child(9),
+    #monitoringTable th:nth-child(10),
+    #monitoringTable td:nth-child(10),
+    #monitoringTable th:nth-child(11),
+    #monitoringTable td:nth-child(11) {
+        width: 6%; /* Direction columns */
+    }
+
+    /* Status column */
+    #monitoringTable th:nth-child(12),
+    #monitoringTable td:nth-child(12) {
+        width: 7%; /* Status */
+    }
+
+    #monitoringTable th:last-child,
+    #monitoringTable td:last-child {
+        width: 8%; /* Status column */
+    }
+
+    /* Make Order ID and APN ID columns slightly wider */
+    #monitoringTable th:nth-child(1),
+    #monitoringTable th:nth-child(2),
+    #monitoringTable td:nth-child(1),
+    #monitoringTable td:nth-child(2) {
+        width: 11%;
     }
 
     th {
-    height: 70px;
+        height: 50px;
         text-align: center;
+        background-color: rgba(26, 29, 33, 0.5);
     }
 </style>
 

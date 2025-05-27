@@ -397,10 +397,13 @@
             <a href="/production" {% if request.path == '/production' %}class="active"{% endif %}>
                 <i class="fas fa-industry"></i>
                 <span>Production</span>
-            </a>
-            <a href="/monitoring" {% if request.path == '/monitoring' %}class="active"{% endif %}>
+            </a>            <a href="/monitoring" {% if request.path == '/monitoring' %}class="active"{% endif %}>
                 <i class="fas fa-tasks"></i>
                 <span>Production Monitoring</span>
+            </a>
+            <a href="/admin" {% if request.path == '/admin' %}class="active"{% endif %}>
+                <i class="fas fa-users-cog"></i>
+                <span>Admin</span>
             </a>
         </nav>
     </aside>

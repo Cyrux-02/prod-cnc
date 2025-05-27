@@ -2,8 +2,11 @@ from flask import Flask, render_template, request, jsonify
 from datetime import datetime
 import mysql.connector
 from mysql.connector import Error
+import hashlib
+import jwt
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'your-secret-key-here'  # Change this to a secure secret key in production
 
 def get_db_connection():
     try:
@@ -18,6 +21,22 @@ def get_db_connection():
     except Error as e:
         print("Error connecting to MySQL:", e)
         return None
+
+# User authentication decorator
+def requires_auth(f):
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return jsonify({'message': 'No authorization header'}), 401
+        
+        try:
+            token = auth_header.split(' ')[1]
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+            return f(*args, **kwargs)
+        except Exception as e:
+            return jsonify({'message': 'Invalid token', 'error': str(e)}), 401
+    decorated.__name__ = f.__name__
+    return decorated
 
 @app.route('/')
 def index():
@@ -39,12 +58,13 @@ def monitoring():
     
     try:
         cursor = conn.cursor(dictionary=True)
-        
         query = """
             SELECT 
                 ol.orderNum as order_id,
                 ol.apnID as apn_id,
                 ol.planned_quantity,
+                COALESCE(s.name, ol.specification) as specification,
+                ol.specs,
                 ol.top,
                 ol.bot,
                 ol.front,
@@ -52,6 +72,7 @@ def monitoring():
                 ol.left,
                 ol.right
             FROM orders_library ol
+            LEFT JOIN specifications s ON ol.specification = s.id
         """
         cursor.execute(query)
         results = cursor.fetchall()
@@ -64,11 +85,13 @@ def monitoring():
                 'Back': row['back'] if row['back'] is not None else "N/A",
                 'Left': row['left'] if row['left'] is not None else "N/A",
                 'Right': row['right'] if row['right'] is not None else "N/A"
-            }
+            }   
             orders.append({
                 'order_id': row['order_id'],
                 'apn_id': row['apn_id'],
                 'planned_quantity': row['planned_quantity'],
+                'specification': row['specification'],
+                'specs': row['specs'],
                 'directions': directions,
             })
                     
@@ -297,7 +320,7 @@ def submit_production():
                 if available[direction] is not None and produced_qty > available[direction]:
                     return jsonify({
                         "error": f"Quantity for '{direction}' ({produced_qty}) exceeds available quantity ({available[direction]})"
-                    }), 400
+                    }, 400)
 
             # Insert production record
             insert_query = """
@@ -487,5 +510,258 @@ def get_orders():
     finally:
         conn.close()
 
+@app.route('/admin')
+def admin():
+    return render_template('admin.html')
+
+@app.route('/admin/users', methods=['GET'])
+# @requires_auth
+def get_users():
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database connection error"}), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+        query = "SELECT ID, FirstName, LastName, Badge, UserName FROM Users"
+        cursor.execute(query)
+        users = cursor.fetchall()        # Get permissions for each user
+        for user in users:
+            perm_query = """
+                SELECT p.PageName, p.create, p.read, p.update, p.delete 
+                FROM Permissions p 
+                JOIN UserPermission up ON p.ID = up.permissionId
+                WHERE up.userId = %s
+            """
+            cursor.execute(perm_query, (user['ID'],))
+            user['permissions'] = cursor.fetchall()
+
+        return jsonify({"users": users})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/admin/users', methods=['POST'])
+# @requires_auth
+def create_user():
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database connection error"}), 500
+
+    try:
+        data = request.get_json()
+        
+        # Hash the password
+        password = hashlib.sha256(data['password'].encode()).hexdigest()
+          # Insert user
+        cursor = conn.cursor()
+        user_query = """
+            INSERT INTO Users (FirstName, LastName, Badge, UserName, `Password`)
+            VALUES (%s, %s, %s, %s, %s)
+        """
+        cursor.execute(user_query, (
+            data['firstName'],
+            data['lastName'],
+            data['badge'],
+            data['userName'],
+            password
+        ))
+        user_id = cursor.lastrowid
+
+        # Insert permissions and user-permission relationships
+        for perm in data['permissions']:
+            # Insert permission
+            perm_query = """
+                INSERT INTO Permissions (PageName, `create`, `read`, `update`, `delete`)
+                VALUES (%s, %s, %s, %s, %s)
+            """
+            cursor.execute(perm_query, (
+                perm['pageName'],
+                perm['create'],
+                perm['read'],
+                perm['update'],
+                perm['delete']
+            ))
+            perm_id = cursor.lastrowid
+            
+            # Create user-permission relationship
+            up_query = """
+                INSERT INTO UserPermission (userId, permissionId)
+                VALUES (%s, %s)
+            """
+            cursor.execute(up_query, (user_id, perm_id))
+
+        conn.commit()
+        return jsonify({"message": "User created successfully"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/admin/users/<int:user_id>', methods=['GET'])
+@requires_auth
+def get_user(user_id):
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database connection error"}), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get user details
+        user_query = "SELECT ID, FirstName, LastName, Badge, UserName FROM Users WHERE ID = %s"
+        cursor.execute(user_query, (user_id,))
+        user = cursor.fetchone()
+        
+        if not user:
+            return jsonify({"error": "User not found"}), 404        # Get user permissions
+        perm_query = """
+            SELECT p.PageName, p.`create`, p.`read`, p.`update`, p.`delete` 
+            FROM Permissions p
+            JOIN UserPermission up ON p.ID = up.permissionId
+            WHERE up.userId = %s
+        """
+        cursor.execute(perm_query, (user_id,))
+        user['permissions'] = cursor.fetchall()
+
+        return jsonify(user)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/admin/users/<int:user_id>', methods=['PUT'])
+@requires_auth
+def update_user(user_id):
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database connection error"}), 500
+
+    try:
+        data = request.get_json()
+        cursor = conn.cursor()
+
+        # Update user details
+        update_fields = ["FirstName = %s", "LastName = %s", "Badge = %s", "UserName = %s"]
+        params = [data['firstName'], data['lastName'], data['badge'], data['userName']]
+
+        if data.get('password'):
+            update_fields.append("Password = %s")
+            password = hashlib.sha256(data['password'].encode()).hexdigest()
+            params.append(password)
+
+        params.append(user_id)
+        
+        user_query = f"""
+            UPDATE Users 
+            SET {', '.join(update_fields)}
+            WHERE ID = %s
+        """
+        cursor.execute(user_query, params)        # Delete old user permissions relationships
+        cursor.execute("DELETE FROM UserPermission WHERE userId = %s", (user_id,))
+        
+        # Insert new permissions and relationships
+        for perm in data['permissions']:
+            # Insert new permission
+            perm_query = """
+                INSERT INTO Permissions (PageName, `create`, `read`, `update`, `delete`)
+                VALUES (%s, %s, %s, %s, %s)
+            """
+            cursor.execute(perm_query, (
+                perm['pageName'],
+                perm['create'],
+                perm['read'],
+                perm['update'],
+                perm['delete']
+            ))
+            perm_id = cursor.lastrowid
+            
+            # Create new user-permission relationship
+            up_query = """
+                INSERT INTO UserPermission (userId, permissionId)
+                VALUES (%s, %s)
+            """
+            cursor.execute(up_query, (user_id, perm_id))
+
+        conn.commit()
+        return jsonify({"message": "User updated successfully"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/admin/users/<int:user_id>', methods=['DELETE'])
+@requires_auth
+def delete_user(user_id):
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database connection error"}), 500
+
+    try:
+        cursor = conn.cursor()
+          # Delete user-permission relationships first
+        cursor.execute("DELETE FROM UserPermission WHERE userId = %s", (user_id,))
+        
+        # Get permission IDs associated with this user
+        cursor.execute("SELECT permissionId FROM UserPermission WHERE userId = %s", (user_id,))
+        perm_ids = [row[0] for row in cursor.fetchall()]
+        
+        # Delete permissions
+        if perm_ids:
+            cursor.execute("DELETE FROM Permissions WHERE ID IN (%s)" % ','.join(['%s'] * len(perm_ids)), tuple(perm_ids))
+        
+        # Delete user
+        cursor.execute("DELETE FROM Users WHERE ID = %s", (user_id,))
+        conn.commit()
+        return jsonify({"message": "User deleted successfully"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/login', methods=['POST'])
+def login():
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database connection error"}), 500
+
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        
+        if not username or not password:
+            return jsonify({"error": "Username and password are required"}), 400
+
+        cursor = conn.cursor(dictionary=True)
+        
+        # Hash the password and check credentials
+        hashed_password = hashlib.sha256(password.encode()).hexdigest()
+        query = "SELECT ID, UserName FROM Users WHERE UserName = %s AND Password = %s"
+        cursor.execute(query, (username, hashed_password))
+        user = cursor.fetchone()
+        
+        if user:
+            # Generate JWT token
+            token = jwt.encode({
+                'user_id': user['ID'],
+                'username': user['UserName'],
+                'exp': datetime.utcnow() + datetime.timedelta(hours=24)
+            }, app.config['SECRET_KEY'], algorithm='HS256')
+            
+            return jsonify({
+                "message": "Login successful",
+                "token": token
+            })
+        else:
+            return jsonify({"error": "Invalid credentials"}), 401
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
 if __name__ == '__main__':
     app.run(host='169.254.103.79', port=5000)
+
