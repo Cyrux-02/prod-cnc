@@ -162,17 +162,21 @@
             badge: document.getElementById('badge').value,
             password: document.getElementById('password').value,
             permissions: getSelectedPermissions()
-        };
-
-        const method = userId ? 'PUT' : 'POST';
+        };        const method = userId ? 'PUT' : 'POST';
         const endpoint = userId ? `/admin/users/${userId}` : '/admin/users';
-
-        fetch(`${url}${endpoint}`, {
+        
+        fetch(endpoint, {
             method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         })
-        .then(res => res.json())
+        .then(async response => {
+            const data = await response.json();
+            if (!response.ok) {
+                throw { status: response.status, message: data.error };
+            }
+            return data;
+        })
         .then(response => {
             alert(response.message);
             resetForm();
@@ -180,7 +184,13 @@
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Operation failed');
+            if (error.status === 409) {
+                alert('Username already exists. Please choose a different username.');
+            } else if (error.message) {
+                alert(error.message);
+            } else {
+                alert('Operation failed. Please try again.');
+            }
         });
     }
 
@@ -205,86 +215,87 @@
     }
 
     function loadUsers() {
-        fetch(`${url}/admin/users`)
-            .then(res => res.json())
-            .then(response => {
+        fetch('/admin/users')
+            .then(response => response.json())
+            .then(data => {
                 const tbody = document.getElementById('usersTableBody');
                 tbody.innerHTML = '';
-
-                response.users.forEach(user => {
-                    const row = `
-                        <tr>
-                            <td>${user.UserName}</td>
-                            <td>${user.FirstName}</td>
-                            <td>${user.LastName}</td>
-                            <td>${user.Badge}</td>
-                            <td class="action-buttons">
-                                <button class="edit-btn" onclick="editUser(${user.ID})">Edit</button>
-                                <button class="delete-btn" onclick="deleteUser(${user.ID})">Delete</button>
-                            </td>
-                        </tr>
+                data.users.forEach(user => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${user.UserName}</td>
+                        <td>${user.FirstName}</td>
+                        <td>${user.LastName}</td>
+                        <td>${user.Badge}</td>
+                        <td class="action-buttons">
+                            <button class="edit-btn" onclick="editUser(${user.ID})">Edit</button>
+                            <button class="delete-btn" onclick="deleteUser(${user.ID})">Delete</button>
+                        </td>
                     `;
-                    tbody.insertAdjacentHTML('beforeend', row);
+                    tbody.appendChild(tr);
                 });
             })
-            .catch(console.error);
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to load users');
+            });
     }
 
     function editUser(userId) {
-        fetch(`${url}/admin/users/${userId}`)
-            .then(res => res.json())
+        fetch(`/admin/users/${userId}`)
+            .then(response => response.json())
             .then(user => {
-                document.getElementById('userId').value = user.id;
-                document.getElementById('firstName').value = user.firstName;
-                document.getElementById('lastName').value = user.lastName;
-                document.getElementById('userName').value = user.userName;
-                document.getElementById('badge').value = user.badge;
-                document.getElementById('password').value = '';
+                document.getElementById('userId').value = user.ID;
+                document.getElementById('firstName').value = user.FirstName;
+                document.getElementById('lastName').value = user.LastName;
+                document.getElementById('userName').value = user.UserName;
+                document.getElementById('badge').value = user.Badge;
+                document.getElementById('password').value = ''; // Don't populate password
+                document.getElementById('submitBtn').textContent = 'Update User';
 
                 // Reset all checkboxes
-                document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-                    checkbox.checked = false;
-                });
+                document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
 
                 // Set permissions
                 user.permissions.forEach(perm => {
-                    Object.keys(perm).forEach(action => {
-                        if (action !== 'pageName' && perm[action]) {
-                            const checkbox = document.querySelector(`input[name="perm_${perm.pageName}"][value="${action}"]`);
-                            if (checkbox) checkbox.checked = true;
+                    const page = perm.PageName.toLowerCase();
+                    ['create', 'read', 'update', 'delete'].forEach(action => {
+                        const checkbox = document.querySelector(`input[name="perm_${page}"][value="${action}"]`);
+                        if (checkbox) {
+                            checkbox.checked = perm[action];
                         }
                     });
                 });
-
-                document.getElementById('submitBtn').textContent = 'Update User';
             })
-            .catch(console.error);
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to load user details');
+            });
     }
 
     function deleteUser(userId) {
-        if (!confirm('Are you sure you want to delete this user?')) return;
+        if (!confirm('Are you sure you want to delete this user?')) {
+            return;
+        }
 
-        fetch(`${url}/admin/users/${userId}`, {
+        fetch(`/admin/users/${userId}`, {
             method: 'DELETE'
         })
-        .then(res => res.json())
-        .then(response => {
-            alert(response.message);
-            loadUsers();
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Failed to delete user');
-        });
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                loadUsers();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to delete user');
+            });
     }
 
     function resetForm() {
-        //document.getElementById('userForm').reset();
-        //document.getElementById('userId').value = '';
-        //document.getElementById('submitBtn').textContent = 'Add User';
-        //document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-        //    checkbox.checked = false;
-        //});
+        document.getElementById('userId').value = '';
+        document.getElementById('userForm').reset();
+        document.getElementById('submitBtn').textContent = 'Add User';
     }
 </script>
 {% endblock %}

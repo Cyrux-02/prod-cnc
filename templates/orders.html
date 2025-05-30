@@ -72,15 +72,14 @@
             apnID: document.getElementById("apnID").value,
             specs: document.getElementById("specs").value,
             specification: document.getElementById("specification").value,
-            plannedQuantity: document.getElementById("plannedQuantity").value,
-        };
+            plannedQuantity: document.getElementById("plannedQuantity").value,        };
 
         if (!data.orderNumber || !data.apnID ||!data.specs || !data.specification || !data.plannedQuantity) {
             alert("Please fill in all required fields");
             return;
         }
 
-        fetch(`${url}/add_order_to_library`, {
+        fetch('/add_order_to_library', {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data)
@@ -95,11 +94,10 @@
             console.error('Error:', error);
             alert("Failed to add order");
         });
-    }
-
-    function loadOrders() {
-        fetch(`${url}/all_orders`)
-            .then(res => res.json())            .then(response => {
+    }    function loadOrders() {
+        fetch('/all_orders')
+            .then(res => res.json())
+            .then(response => {
                 const tbody = document.getElementById("ordersTableBody");
                 tbody.innerHTML = "";
 
