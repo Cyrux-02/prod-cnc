@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block title %}Assembly - ATBU Production{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .assembly-container {
+        padding: 20px;
+    }
+    
+    .assembly-form {
+        background: rgba(26, 29, 33, 0.5);
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 30px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    #orderDetails {
+        background: rgba(26, 29, 33, 0.5);
+        padding: 20px;
+        border-radius: 12px;
+        margin: 20px 0;
+    }
+    
+    .assembly-list {
+        background: rgba(30, 32, 36, 0.95);
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+    }
+    
+    .assembly-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .assembly-table th, .assembly-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #2c2f35;
+    }
+    
+    .assembly-table th {
+        background-color: rgba(26, 29, 33, 0.5);
+        color: #ff7b00;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Assembly Management</h2>
+    
+    <div class="assembly-container">
+        <form class="assembly-form" id="assemblyForm">
+            <div class="form-group">
+                <label for="orderSelect">Order Number:</label>
+                <select id="orderSelect" required>
+                    <option value="">Select Order</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="apnSelect">APN ID:</label>
+                <select id="apnSelect" required disabled>
+                    <option value="">Select APN ID</option>
+                </select>
+            </div>
+            
+            <div id="orderDetails">
+                <p><strong>Specification:</strong> <span id="specificationDisplay">N/A</span></p>
+                <p><strong>Planned Quantity:</strong> <span id="plannedQtyDisplay">N/A</span></p>
+                <p><strong>Spec:</strong> <span id="specDisplay">N/A</span></p>
+            </div>
+            
+            <div class="form-group">
+                <label for="holdersQuantity">Holders Produced:</label>
+                <input type="number" id="holdersQuantity" min="1" required>
+            </div>
+            
+            <button type="submit" class="send-btn">Submit Assembly</button>
+        </form>
+        
+        <div class="section-header">
+            <h3>Assembly History</h3>
+        </div>
+        
+        <div class="assembly-list">
+            <table class="assembly-table">
+                <thead>
+                    <tr>                        <th>Date & Time</th>
+                        <th>Order</th>
+                        <th>APN ID</th>
+                        <th>Specification</th>
+                        <th>Spec</th>
+                        <th>Planned Quantity</th>
+                        <th>Holders Produced</th>
+                        <th>User</th>
+                    </tr>
+                </thead>
+                <tbody id="assemblyTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadOrders();
+    loadAssemblyHistory();
+    setupFormListeners();
+});
+
+function setupFormListeners() {
+    const orderSelect = document.getElementById('orderSelect');
+    const apnSelect = document.getElementById('apnSelect');
+    
+    // When order is selected, load APNs for that order
+    orderSelect.addEventListener('change', async function() {
+        const selectedOrder = this.value;
+        apnSelect.disabled = !selectedOrder;
+        apnSelect.innerHTML = '<option value="">Select APN ID</option>';
+        resetOrderDetails();
+        
+        if (selectedOrder) {
+            try {
+                const response = await fetch('/all_orders');
+                const data = await response.json();
+                
+                const orderData = data.data.filter(order => order.orderNumber === selectedOrder);
+                const uniqueAPNs = [...new Set(orderData.map(order => order.apnID))];
+                
+                uniqueAPNs.forEach(apn => {
+                    const option = document.createElement('option');
+                    option.value = apn;
+                    option.textContent = apn;
+                    apnSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading APNs:', error);
+            }
+        }
+    });
+    
+    // When APN is selected, load order details
+    apnSelect.addEventListener('change', async function() {
+        const selectedOrder = orderSelect.value;
+        const selectedAPN = this.value;
+        
+        if (selectedOrder && selectedAPN) {
+            try {
+                const response = await fetch('/all_orders');
+                const data = await response.json();
+                
+                const orderData = data.data.find(order => 
+                    order.orderNumber === selectedOrder && 
+                    order.apnID === selectedAPN
+                );
+                
+                if (orderData) {
+                    document.getElementById('specificationDisplay').textContent = orderData.specification || "N/A";
+                    document.getElementById('plannedQtyDisplay').textContent = orderData.plannedQuantity || "N/A";
+                    document.getElementById('specDisplay').textContent = orderData.specs || "N/A";
+                }
+            } catch (error) {
+                console.error('Error loading order details:', error);
+            }
+        }
+    });
+    
+    // Handle form submission
+    document.getElementById('assemblyForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitAssembly();
+    });
+}
+
+function loadOrders() {
+    fetch('/all_orders')
+        .then(response => response.json())
+        .then(data => {
+            const orderSelect = document.getElementById('orderSelect');
+            const uniqueOrders = [...new Set(data.data.map(order => order.orderNumber))];
+            orderSelect.innerHTML = '<option value="">Select Order</option>';
+            uniqueOrders.forEach(order => {
+                const option = document.createElement('option');
+                option.value = order;
+                option.textContent = order;
+                orderSelect.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error loading orders:', error));
+}
+
+function loadAssemblyHistory() {
+    fetch('/api/assembly')
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.getElementById('assemblyTableBody');
+            tbody.innerHTML = '';
+            
+            data.data.forEach(item => {
+                const row = document.createElement('tr');                row.innerHTML = `
+                    <td>${item.createdDate}</td>
+                    <td>${item.orderNumber}</td>
+                    <td>${item.apnId}</td>
+                    <td>${item.specification}</td>
+                    <td>${item.spec}</td>
+                    <td>${item.plannedQuantity}</td>
+                    <td>${item.holdersQuantity}</td>
+                    <td>${item.username}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        })
+        .catch(error => console.error('Error loading assembly history:', error));
+}
+
+function resetOrderDetails() {
+    document.getElementById('specificationDisplay').textContent = "N/A";
+    document.getElementById('plannedQtyDisplay').textContent = "N/A";
+    document.getElementById('specDisplay').textContent = "N/A";
+}
+
+function submitAssembly() {
+    const orderSelect = document.getElementById('orderSelect');
+    const apnSelect = document.getElementById('apnSelect');
+    const holdersQuantity = document.getElementById('holdersQuantity');
+    
+    const data = {
+        nameuser: 'currentUser', // This should be replaced with actual logged-in user
+        order1: orderSelect.value,
+        apnid: apnSelect.value,
+        specification: document.getElementById('specificationDisplay').textContent,
+        specs: document.getElementById('specDisplay').textContent,
+        plannedQuantity: parseInt(document.getElementById('plannedQtyDisplay').textContent),
+        holdersQuantity: parseInt(holdersQuantity.value),
+        createdDate: new Date().toISOString().slice(0, 19).replace('T', ' ')
+    };
+    
+    fetch('/add_send_specification', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.message) {
+            alert('Assembly submitted successfully');
+            document.getElementById('assemblyForm').reset();
+            loadAssemblyHistory();
+            resetOrderDetails();
+            document.getElementById('apnSelect').disabled = true;
+        } else {
+            alert(data.error || 'Error submitting assembly');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error submitting assembly');
+    });
+}
+</script>
+{% endblock %}

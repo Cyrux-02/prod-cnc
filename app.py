@@ -4,8 +4,8 @@ import mysql.connector
 from mysql.connector import Error
 import hashlib
 import jwt
-from collections import defaultdict
 import time
+from collections import defaultdict
 from functools import wraps
 
 app = Flask(__name__)
@@ -836,7 +836,6 @@ def login():
         if request.cookies.get('authToken'):
             return redirect(url_for('index'))
         return render_template('login.html')
-
     # Handle POST request
     conn = get_db_connection()
     if not conn:
@@ -902,6 +901,93 @@ def login():
             else:
                 return jsonify({"error": "Too many login attempts. Please try again later."}), 429
             
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/add_send_specification', methods=['POST'])
+def add_send_specification():
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database connection error"}), 500
+
+    try:
+        data = request.get_json()
+        user_name = data["nameuser"]
+        order_number = data["order1"]
+        apn_id = data["apnid"]
+        spec = data["specs"]
+        specification = data["specification"]
+        created_date = data["createdDate"]
+        planned_quantity = int(data["plannedQuantity"])
+        holders_quantity = int(data["holdersQuantity"])
+        
+        query = """
+            INSERT INTO assemblage (
+                nameuser, order1, apnid, spec, quantity, createdDate, specification, planned_quantity
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        
+        values = (
+            user_name,
+            order_number,
+            apn_id,
+            spec,
+            holders_quantity,
+            created_date,
+            specification,
+            planned_quantity
+        )
+
+        with conn.cursor() as cursor:
+            cursor.execute(query, values)
+            conn.commit()
+
+        return jsonify({"message": "Order added to assembly successfully"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+@app.route('/assembly')
+def assembly():
+    return render_template('assembly.html')
+
+@app.route('/api/assembly', methods=['GET'])
+def get_assembly_history():
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database connection error"}), 500
+
+    try:
+        query = """
+            SELECT 
+                nameuser, order1, apnid, spec, 
+                specification, quantity, createdDate, planned_quantity
+            FROM assemblage
+            ORDER BY createdDate DESC
+        """
+
+        with conn.cursor(dictionary=True) as cursor:
+            cursor.execute(query)
+            results = cursor.fetchall()
+
+            assembly_list = []
+            for row in results:
+                assembly_list.append({
+                    "username": row['nameuser'],
+                    "orderNumber": row['order1'],
+                    "apnId": row['apnid'],
+                    "spec": row['spec'],
+                    "specification": row['specification'],
+                    "holdersQuantity": row['quantity'],
+                    "plannedQuantity": row['planned_quantity'],
+                    "createdDate": row['createdDate'].strftime("%Y-%m-%d %H:%M:%S") if hasattr(row['createdDate'], "strftime") else str(row['createdDate'])
+                })
+
+            return jsonify({"data": assembly_list})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
