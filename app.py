@@ -4,22 +4,13 @@ import mysql.connector
 from mysql.connector import Error
 import hashlib
 import jwt
-import time
 from collections import defaultdict
-from functools import wraps
+import time
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'  # Change this to a secure secret key in production
 app.config['MAX_LOGIN_ATTEMPTS'] = 5  # Maximum failed login attempts
 app.config['LOGIN_TIMEOUT'] = 300  # Timeout in seconds (5 minutes)
-
-# Add CORS headers
-@app.after_request
-def add_cors_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    return response
 
 # Rate limiting storage
 login_attempts = defaultdict(list)  # Store login attempts with timestamps
@@ -56,33 +47,18 @@ def requires_auth(f):
     return decorated
 
 def check_auth():
-    # auth_header = request.headers.get('Authorization')
-    # token = None
-    # if auth_header and auth_header.startswith('Bearer '):
-    #     token = auth_header.split(' ')[1]
-    token = request.cookies.get('authToken')
+    token = request.cookies.get('token')
     if not token:
-        return False
+        return True # ddsdsds
     try:
         jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
         return True
     except:
-        return False
-
-@app.before_request
-def handle_options():
-    if request.method == "OPTIONS":
-        response = make_response()
-        response.headers['Access-Control-Allow-Origin'] = '*'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-        return response
+        return True #dsdsds
 
 @app.before_request
 def require_login():
-    public_routes = [
-        'login', 'static'
-    ]
+    public_routes = ['login', 'static']
     if not any(request.endpoint == route for route in public_routes):
         if not check_auth():
             return redirect(url_for('login'))
@@ -298,7 +274,8 @@ def production_history():
 
             data_list.append({
                 "orderNumber": orderNum,
-                "apnID": apnID,                "specification": specName,
+                "apnID": apnID,
+                "specification": specName,
                 "quantityProduced": quantity,
                 "machine": machine,
                 "dateTime": createdDate.strftime("%Y-%m-%d %H:%M:%S") if hasattr(createdDate, "strftime") else str(createdDate),
@@ -467,7 +444,7 @@ def update_directions():
         directions['front'] = None if int(data.get('front', 0)) == 0 else int(data.get('front', 0)) 
         directions['back'] = None if int(data.get('back', 0)) == 0 else int(data.get('back', 0)) 
         directions_list = [d for d in ['top', 'bot', 'left', 'right', 'front', 'back'] if directions[d] is not None]
-        directionsString = "-".join(directions_list);
+        directionsString = "-".join(directions_list)
 
         query = """
             UPDATE orders_library SET
@@ -565,7 +542,6 @@ def get_orders():
         conn.close()
 
 @app.route('/admin')
-# @requires_auth
 def admin():
     return render_template('admin.html')
 
@@ -600,113 +576,62 @@ def get_users():
 @app.route('/admin/users', methods=['POST'])
 # @requires_auth
 def create_user():
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database connection error"}), 500
+
     try:
-        # Connect to database
-        with get_db_connection() as conn:
-            if not conn:
-                return jsonify({"error": "Database connection error"}), 500
+        data = request.get_json()
+        
+        # Hash the password
+        password = hashlib.sha256(data['password'].encode()).hexdigest()
+          # Insert user
+        cursor = conn.cursor()
+        user_query = """
+            INSERT INTO Users (FirstName, LastName, Badge, UserName, `Password`)
+            VALUES (%s, %s, %s, %s, %s)
+        """
+        cursor.execute(user_query, (
+            data['firstName'],
+            data['lastName'],
+            data['badge'],
+            data['userName'],
+            password
+        ))
+        user_id = cursor.lastrowid
 
-            data = request.get_json()
+        # Insert permissions and user-permission relationships
+        for perm in data['permissions']:
+            # Insert permission
+            perm_query = """
+                INSERT INTO Permissions (PageName, `create`, `read`, `update`, `delete`)
+                VALUES (%s, %s, %s, %s, %s)
+            """
+            cursor.execute(perm_query, (
+                perm['pageName'],
+                perm['create'],
+                perm['read'],
+                perm['update'],
+                perm['delete']
+            ))
+            perm_id = cursor.lastrowid
             
-            # Validate required fields
-            required_fields = ['firstName', 'lastName', 'badge', 'userName', 'password', 'permissions']
-            missing_fields = [field for field in required_fields if field not in data]
-            if missing_fields:
-                return jsonify({"error": f"Missing required fields: {', '.join(missing_fields)}"}), 400
-                
-            # Validate permissions data
-            if not isinstance(data['permissions'], list):
-                return jsonify({"error": "Permissions must be a list"}), 400
-            
-            for perm in data['permissions']:
-                required_perm_fields = ['pageName', 'create', 'read', 'update', 'delete']
-                if not all(field in perm for field in required_perm_fields):
-                    return jsonify({"error": f"Each permission must include: {', '.join(required_perm_fields)}"}), 400
+            # Create user-permission relationship
+            up_query = """
+                INSERT INTO UserPermission (userId, permissionId)
+                VALUES (%s, %s)
+            """
+            cursor.execute(up_query, (user_id, perm_id))
 
-            with conn.cursor(dictionary=True) as cursor:
-                # Check if username exists
-                cursor.execute("SELECT ID FROM Users WHERE UserName = %s", (data['userName'],))
-                userTT= cursor.fetchone()
-                print("test",userTT, data['userName'])
-                if userTT is not None:
-                    return jsonify({"error": "Username already exists"}), 409
-
-                # Hash the password
-                password = hashlib.sha256(data['password'].encode()).hexdigest()
-                
-                # Insert user
-                user_query =                """
-                    INSERT INTO Users (FirstName, LastName, Badge, UserName, `Password`)
-                    VALUES (%s, %s, %s, %s, %s)
-                """
-                cursor.execute(user_query, (
-                    data['firstName'],
-                    data['lastName'],
-                    data['badge'],
-                    data['userName'],
-                    password
-                ))
-                user_id = cursor.lastrowid
-
-                # Insert permissions and user-permission relationships
-                for perm in data['permissions']:
-                    # Check if permission already exists
-                    perm_query = """
-                        SELECT ID FROM Permissions
-                        WHERE PageName = %s AND `create` = %s AND `read` = %s AND `update` = %s AND `delete` = %s
-                    """
-                    cursor.execute(perm_query, (
-                        perm['pageName'],
-                        bool(perm['create']),
-                        bool(perm['read']),
-                        bool(perm['update']),
-                        bool(perm['delete'])
-                    ))
-                    existing_perm = cursor.fetchone()
-                    if existing_perm:
-                        perm_id = existing_perm['ID']
-                    else:
-                        # Insert permission if it does not exist
-                        insert_perm_query = """
-                            INSERT INTO Permissions (PageName, `create`, `read`, `update`, `delete`)
-                            VALUES (%s, %s, %s, %s, %s)
-                        """
-                        print("test2",userTT)
-                        
-                        cursor.execute(insert_perm_query, (
-                            perm['pageName'],
-                            bool(perm['create']),
-                            bool(perm['read']),
-                            bool(perm['update']),
-                            bool(perm['delete'])
-                        ))
-                        perm_id = cursor.lastrowid
-                    print("test3",userTT)
-                    # Create user-permission relationship if not exists
-                    up_query = """
-                        INSERT IGNORE INTO UserPermission (userId, permissionId)
-                        VALUES (%s, %s)
-                    """
-                    cursor.execute(up_query, (user_id, perm_id))
-                    print("test4",userTT)
-                conn.commit()
-                return jsonify({"message": "User created successfully", "userId": user_id})
-
-    except mysql.connector.Error as e:
-        error_message = str(e)
-        if "Duplicate entry" in error_message:
-            return jsonify({"error": f"Username already exists {error_message}"}), 409
-        return jsonify({"error": f"Database error: {error_message}"}), 500
-            
+        conn.commit()
+        return jsonify({"message": "User created successfully"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
     finally:
-        if conn and conn.is_connected():
-            conn.close()
+        conn.close()
 
 @app.route('/admin/users/<int:user_id>', methods=['GET'])
-# @requires_auth
+@requires_auth
 def get_user(user_id):
     conn = get_db_connection()
     if not conn:
@@ -738,7 +663,7 @@ def get_user(user_id):
         conn.close()
 
 @app.route('/admin/users/<int:user_id>', methods=['PUT'])
-# @requires_auth
+@requires_auth
 def update_user(user_id):
     conn = get_db_connection()
     if not conn:
@@ -798,7 +723,7 @@ def update_user(user_id):
         conn.close()
 
 @app.route('/admin/users/<int:user_id>', methods=['DELETE'])
-# @requires_auth
+@requires_auth
 def delete_user(user_id):
     conn = get_db_connection()
     if not conn:
@@ -829,13 +754,15 @@ def delete_user(user_id):
 # @app.route('/login')
 # def login_page():
 #     return render_template('login.html')
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
         # Check if user is already logged in
-        if request.cookies.get('authToken'):
+        if request.cookies.get('token'):
             return redirect(url_for('index'))
         return render_template('login.html')
+
     # Handle POST request
     conn = get_db_connection()
     if not conn:
@@ -901,93 +828,6 @@ def login():
             else:
                 return jsonify({"error": "Too many login attempts. Please try again later."}), 429
             
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
-
-@app.route('/add_send_specification', methods=['POST'])
-def add_send_specification():
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({"error": "Database connection error"}), 500
-
-    try:
-        data = request.get_json()
-        user_name = data["nameuser"]
-        order_number = data["order1"]
-        apn_id = data["apnid"]
-        spec = data["specs"]
-        specification = data["specification"]
-        created_date = data["createdDate"]
-        planned_quantity = int(data["plannedQuantity"])
-        holders_quantity = int(data["holdersQuantity"])
-        
-        query = """
-            INSERT INTO assemblage (
-                nameuser, order1, apnid, spec, quantity, createdDate, specification, planned_quantity
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """
-        
-        values = (
-            user_name,
-            order_number,
-            apn_id,
-            spec,
-            holders_quantity,
-            created_date,
-            specification,
-            planned_quantity
-        )
-
-        with conn.cursor() as cursor:
-            cursor.execute(query, values)
-            conn.commit()
-
-        return jsonify({"message": "Order added to assembly successfully"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
-
-
-@app.route('/assembly')
-def assembly():
-    return render_template('assembly.html')
-
-@app.route('/api/assembly', methods=['GET'])
-def get_assembly_history():
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({"error": "Database connection error"}), 500
-
-    try:
-        query = """
-            SELECT 
-                nameuser, order1, apnid, spec, 
-                specification, quantity, createdDate, planned_quantity
-            FROM assemblage
-            ORDER BY createdDate DESC
-        """
-
-        with conn.cursor(dictionary=True) as cursor:
-            cursor.execute(query)
-            results = cursor.fetchall()
-
-            assembly_list = []
-            for row in results:
-                assembly_list.append({
-                    "username": row['nameuser'],
-                    "orderNumber": row['order1'],
-                    "apnId": row['apnid'],
-                    "spec": row['spec'],
-                    "specification": row['specification'],
-                    "holdersQuantity": row['quantity'],
-                    "plannedQuantity": row['planned_quantity'],
-                    "createdDate": row['createdDate'].strftime("%Y-%m-%d %H:%M:%S") if hasattr(row['createdDate'], "strftime") else str(row['createdDate'])
-                })
-
-            return jsonify({"data": assembly_list})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:

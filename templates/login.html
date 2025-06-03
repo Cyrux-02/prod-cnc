@@ -195,10 +195,6 @@
 
 {% block scripts %}
 <script>
-
-
-const token = getToken();
-// JavaScript for handling login form submission
 document.getElementById('loginForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     
@@ -210,29 +206,18 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
         const response = await fetch('/login', {
             method: 'POST',
             headers: {
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : ''
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-            username: username,
-            password: password,
-            remember_me: rememberMe
+                username: username,
+                password: password,
+                remember_me: rememberMe
             })
         });
         
         const data = await response.json();
-        console.log('Login response:', data);
-
-        if (response.ok && data.token) {
-            // Store the token in localStorage or sessionStorage
-            if (rememberMe) {
-                localStorage.setItem('authToken', data.token);
-            } else {
-                sessionStorage.setItem('authToken', data.token);
-            }
-            document.cookie = `authToken=${data.token}; path=/; ${rememberMe ? 'max-age=2592000;' : ''}`;
-            
-            // Redirect to the home page
+        
+        if (response.ok) {
             window.location.href = '/';
         } else {
             alert(data.error || 'Login failed');

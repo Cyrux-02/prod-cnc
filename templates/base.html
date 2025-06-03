@@ -360,9 +360,6 @@
         .secondary-btn:hover {
             background: rgba(255, 123, 0, 0.1);
         }
-        #logoutLink {
-            display: none; /* Hide logout link by default */
-        }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     {% endblock %}
@@ -400,12 +397,7 @@
             <a href="/production" {% if request.path == '/production' %}class="active"{% endif %}>
                 <i class="fas fa-industry"></i>
                 <span>Production</span>
-            </a>
-            <a href="/assembly" {% if request.path == '/assembly' %}class="active"{% endif %}>
-                <i class="fas fa-tools"></i>
-                <span>Assembly</span>
-            </a>
-            <a href="/monitoring" {% if request.path == '/monitoring' %}class="active"{% endif %}>
+            </a>            <a href="/monitoring" {% if request.path == '/monitoring' %}class="active"{% endif %}>
                 <i class="fas fa-tasks"></i>
                 <span>Production Monitoring</span>
             </a>
@@ -413,74 +405,13 @@
                 <i class="fas fa-users-cog"></i>
                 <span>Admin</span>
             </a>
-            <a href="/logout" id="logoutLink">
-                <i class="fas fa-sign-out-alt"></i>
-                <span>Logout</span>
-            </a>
         </nav>
     </aside>
 
     {% block content %}{% endblock %}
 
     <script>
-        const url = "http://169.254.103.79:5600";
-
-        function getToken() {
-            return localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-        }
-        if (getToken()) {
-            const logoutLink = document.getElementById('logoutLink');
-            logoutLink.style.display = 'block'; 
-            logoutLink.addEventListener('click', function(event) {
-                event.preventDefault();
-                localStorage.removeItem('authToken');
-                sessionStorage.removeItem('authToken');
-                // Optionally, you can also clear cookies if needed
-                document.cookie = 'authToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-                // Redirect to login page
-                window.location.href = '/login'; // Redirect to login page
-            });
-        }
-
-
-
-        // Patch fetch to always include token in cookies
-        const originalFetch = window.fetch;
-        window.fetch = function(input, init = {}) {
-            let token = getToken();
-            if (token) {
-                init.credentials = 'include';
-                // Set the cookie header if not already present
-                let headers = new Headers(init.headers || {});
-                let cookie = headers.get('Cookie') || '';
-                if (!cookie.includes('token=')) {
-                    cookie += (cookie ? '; ' : '') + 'token=' + token;
-                    headers.set('Cookie', cookie);
-                }
-                init.headers = headers;
-            }
-            return originalFetch(input, init);
-        };
-
-        // Patch XMLHttpRequest to always include token in cookies
-        (function() {
-            const origOpen = XMLHttpRequest.prototype.open;
-            XMLHttpRequest.prototype.open = function() {
-                this._token = getToken();
-                origOpen.apply(this, arguments);
-            };
-            const origSend = XMLHttpRequest.prototype.send;
-            XMLHttpRequest.prototype.send = function() {
-                if (this._token) {
-                    let cookie = this.getRequestHeader && this.getRequestHeader('Cookie') || '';
-                    if (!cookie || !cookie.includes('token=')) {
-                        this.setRequestHeader('Cookie', (cookie ? cookie + '; ' : '') + 'token=' + this._token);
-                    }
-                }
-                origSend.apply(this, arguments);
-            };
-        })();
-         
+        const url = "http://169.254.103.79:5000";
         // Sidebar toggle for mobile
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('open');

@@ -145,7 +145,7 @@
             try {
                 const response = await fetch(`${url}/api/orders`);
                 const data = await response.json();
-                const uniqueOrders = [...new Set(data.data.map(order => order.orderNum))];
+                const uniqueOrders = [...new Set(data.data.map(order => order.orderNumber))];
                 orderSelect.innerHTML = '<option value="">Select Order</option>';
                 uniqueOrders.forEach(order => {
                     const option = document.createElement('option');
