@@ -1,11 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}ATBU Production{% endblock %}</title>
     
-    {% block styles %}
+    {% block styles %}    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script>
+    // Base URL configuration for API requests
+    const url = 'http://127.0.0.1:5400';
+    const apiUrl = `${url}/api`;  // For API routes
+    const webUrl = url;  // For web routes
+
+    // Get user info from token when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = document.cookie.split('; ').find(row => row.startsWith('token='));
+            if (token) {
+                const tokenData = JSON.parse(atob(token.split('=')[1].split('.')[1]));
+                document.getElementById('userName').textContent = tokenData.firstname + ' ' + tokenData.lastname;
+                document.getElementById('userBadge').textContent = 'Badge: ' + tokenData.badge;
+            }
+        });
+    </script>
     <style>
         body {
             background-color: #0a0c0f;
@@ -13,6 +29,79 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 0;
+        }
+        
+        .nav-container {
+            background-color: rgba(30, 32, 36, 0.95);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: #e4e6eb;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: background-color 0.3s;
+        }        .nav-links a:hover {
+            background-color: rgba(255, 123, 0, 0.1);
+            color: #ff7b00;
+        }
+
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-left: auto;
+            padding: 0 20px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #ff7b00;
+        }
+
+        .user-info i {
+            font-size: 1.2em;
+        }
+
+        .user-info .user-name {
+            font-weight: 500;
+        }
+
+        .user-info .user-badge {
+            color: #b8bcc4;
+            font-size: 0.9em;
+        }
+
+        .logout-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #ff7b00;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .logout-btn:hover {
+            background-color: #e66e00;
         }
 
         h2 {
@@ -360,6 +449,54 @@
         .secondary-btn:hover {
             background: rgba(255, 123, 0, 0.1);
         }
+
+        .nav-container {
+            background-color: rgba(30, 32, 36, 0.95);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: #e4e6eb;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: background-color 0.3s;
+        }
+
+        .nav-links a:hover {
+            background-color: rgba(255, 123, 0, 0.1);
+            color: #ff7b00;
+        }
+
+        .logout-btn {
+            background-color: #ff7b00;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .logout-btn:hover {
+            background-color: #e66e00;
+        }
+
+        .user-info {
+            color: #b8bcc4;
+            margin-right: 15px;
+        }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     {% endblock %}
@@ -408,10 +545,28 @@
         </nav>
     </aside>
 
+    {% if request.endpoint != 'login' %}
+    <div class="nav-container">
+        <div class="nav-links">
+            {% block nav_links %}{% endblock %}
+        </div>
+        <div class="user-section">
+            <div class="user-info">
+                <i class="fas fa-user"></i>
+                <span id="userName"></span>
+                <span id="userBadge"></span>
+            </div>
+            <a href="{{ url_for('logout') }}" class="logout-btn">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
     {% block content %}{% endblock %}
 
     <script>
-        const url = "http://169.254.103.79:5600";
         // Sidebar toggle for mobile
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('open');
@@ -426,6 +581,20 @@
                 if (!sidebar.contains(e.target) && e.target !== toggle) {
                     sidebar.classList.remove('open');
                     document.getElementById('sidebarOverlay').classList.remove('active');
+                }
+            }
+        });
+
+        // Display user name from token
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = document.cookie.split('; ').find(row => row.startsWith('token='));
+            if (token) {
+                try {
+                    const tokenValue = token.split('=')[1];
+                    const tokenData = JSON.parse(atob(tokenValue.split('.')[1]));
+                    document.getElementById('userNameDisplay').textContent = `${tokenData.FirstName} ${tokenData.LastName}`;
+                } catch (error) {
+                    console.error('Error parsing token:', error);
                 }
             }
         });

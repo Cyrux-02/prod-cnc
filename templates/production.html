@@ -99,6 +99,7 @@
                     <th>Directions</th>
                     <th>Machine</th>
                     <th>Spec</th>
+                    <th>User</th>
                 </tr>
             </thead>
             <tbody>
@@ -294,15 +295,27 @@
             if (selectedDirections.length === 0) {
                 alert('Please select at least one direction');
                 return;
-            }
-              const formData = {
+            }              // Get user info from cookie
+              const token = document.cookie.split('; ').find(row => row.startsWith('token='));
+              const tokenValue = token ? token.split('=')[1] : null;
+              let userFirstName = 'Unknown';
+              
+              if (tokenValue) {
+                  try {
+                      const tokenData = JSON.parse(atob(tokenValue.split('.')[1]));
+                      userFirstName = tokenData.FirstName;
+                  } catch (error) {
+                      console.error('Error parsing token:', error);
+                  }
+              }              const formData = {
                 orderNumber: orderSelect.value,
                 apnID: apnSelect.value,
                 specification: document.getElementById('specificationDisplay').textContent,
                 specs: document.getElementById('specDisplay').textContent,
                 quantity: parseInt(document.getElementById('quantity').value),
                 machine: document.getElementById('machine').value,
-                directions: selectedDirections
+                directions: selectedDirections,
+                user_name: userFirstName
             };
             
             try {
@@ -353,16 +366,15 @@
                     if (record.left) directions.push('Left');
                     if (record.right) directions.push('Right');
                     
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
+                    const row = document.createElement('tr');                    row.innerHTML = `
                         <td>${record.dateTime}</td>
                         <td>${record.orderNumber}</td>
                         <td>${record.apnID}</td>
                         <td>${record.specification}</td>
                         <td>${record.quantityProduced}</td>
                         <td>${directions.join(', ')}</td>
-                        <td>${record.machine}</td>
-                        <td>${record.specs ?? "N/A"}</td>
+                        <td>${record.machine}</td>                        <td>${record.specs ?? "N/A"}</td>
+                        <td>${record.user_name ?? "N/A"}</td>
                     `;
                     tbody.appendChild(row);
                 });

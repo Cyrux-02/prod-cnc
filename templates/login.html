@@ -1,231 +1,160 @@
 {% extends "base.html" %}
 
-{% block title %}ATBU Production - Login{% endblock %}
+{% block title %}Login - ATBU Production{% endblock %}
 
 {% block content %}
 <div class="login-container">
     <div class="login-box">
-        <div class="login-header">
-            <i class="fas fa-microchip logo-icon"></i>
-            <h2>ATBU Production</h2>
-            <p>Sign in to continue</p>
-        </div>
-        <form id="loginForm" class="login-form">
+        <h2>Login</h2>
+        <form id="loginForm">
             <div class="form-group">
-                <label for="username">
-                    <i class="fas fa-user"></i>
-                    Username
-                </label>
-                <input type="text" id="username" required autocomplete="username">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required>
             </div>
             <div class="form-group">
-                <label for="password">
-                    <i class="fas fa-lock"></i>
-                    Password
-                </label>
-                <input type="password" id="password" required autocomplete="current-password">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
             </div>
-            <div class="form-group remember-me">
+            <div class="form-group">
                 <label class="checkbox-label">
-                    <input type="checkbox" id="rememberMe">
-                    <span>Remember me</span>
+                    <input type="checkbox" id="rememberMe" name="remember_me">
+                    Remember me
                 </label>
             </div>
-            <button type="submit" class="login-btn">
-                <span>Sign In</span>
-                <i class="fas fa-arrow-right"></i>
-            </button>
+            <button type="submit" class="login-btn">Login</button>
         </form>
+        <div id="error-message" class="error-message"></div>
     </div>
 </div>
+{% endblock %}
 
+{% block styles %}
+{{ super() }}
 <style>
-.login-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background: linear-gradient(135deg, #1a1d21 0%, #0a0c0f 100%);
-    padding: 20px;
-}
+    .login-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background-color: #0a0c0f;
+    }
 
-.login-box {
-    background: rgba(26, 29, 33, 0.95);
-    padding: 40px;
-    border-radius: 20px;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
-    width: 100%;
-    max-width: 400px;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 123, 0, 0.1);
-}
+    .login-box {
+        background-color: rgba(30, 32, 36, 0.95);
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 8px 32px rgba(255, 123, 0, 0.1);
+        width: 100%;
+        max-width: 400px;
+    }
 
-.login-header {
-    text-align: center;
-    margin-bottom: 40px;
-}
-
-.login-header .logo-icon {
-    font-size: 48px;
-    color: #ff7b00;
-    margin-bottom: 20px;
-    display: block;
-}
-
-.login-header h2 {
-    color: #ff7b00;
-    font-size: 24px;
-    margin: 0 0 10px;
-    font-weight: 600;
-}
-
-.login-header p {
-    color: #b8bcc4;
-    font-size: 16px;
-    margin: 0;
-}
-
-.login-form .form-group {
-    margin-bottom: 25px;
-}
-
-.login-form label {
-    display: block;
-    color: #e4e6eb;
-    margin-bottom: 10px;
-    font-size: 14px;
-}
-
-.login-form label i {
-    margin-right: 10px;
-    color: #ff7b00;
-}
-
-.login-form input {
-    width: 100%;
-    padding: 12px 15px;
-    background: rgba(20, 23, 26, 0.8);
-    border: 2px solid #2c2f35;
-    border-radius: 10px;
-    color: #e4e6eb;
-    font-size: 16px;
-    transition: all 0.3s ease;
-}
-
-.login-form input:focus {
-    border-color: #ff7b00;
-    box-shadow: 0 0 0 2px rgba(255, 123, 0, 0.1);
-    outline: none;
-}
-
-.login-btn {
-    width: 100%;
-    padding: 14px;
-    background: linear-gradient(135deg, #ff7b00, #ff6b00);
-    border: none;
-    border-radius: 10px;
-    color: white;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-}
-
-.login-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(255, 123, 0, 0.3);
-}
-
-.login-btn i {
-    transition: transform 0.3s ease;
-}
-
-.login-btn:hover i {
-    transform: translateX(5px);
-}
-
-.error-message {
-        display: none;
-        color: #ff3333;
-        background: rgba(255, 51, 51, 0.1);
-        border-radius: 8px;
-        padding: 10px;
-        margin-bottom: 15px;
-        font-size: 14px;
+    .login-box h2 {
         text-align: center;
-        border: 1px solid rgba(255, 51, 51, 0.2);
+        color: #ff7b00;
+        margin-bottom: 30px;
     }
 
-    @media (max-width: 480px) {
-        .login-box {
-        padding: 30px 20px;
+    .form-group {
+        margin-bottom: 20px;
     }
-}
 
-.remember-me {
-    display: flex;
-    align-items: center;
-    margin-bottom: 20px;
-}
+    .login-btn {
+        width: 100%;
+        padding: 12px;
+        background-color: #ff7b00;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
 
-.checkbox-label {
-    display: flex !important;
-    align-items: center;
-    cursor: pointer;
-    user-select: none;
-}
+    .login-btn:hover {
+        background-color: #e66e00;
+    }
 
-.checkbox-label input[type="checkbox"] {
-    width: auto;
-    margin-right: 8px;
-    cursor: pointer;
-}
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #b8bcc4;
+        cursor: pointer;
+    }
 
-.checkbox-label span {
-    color: #b8bcc4;
-    font-size: 14px;
-}
+    .checkbox-label input[type="checkbox"] {
+        width: auto;
+        margin: 0;
+    }
+
+    .error-message {
+        color: #ff4444;
+        text-align: center;
+        margin-top: 15px;
+        font-size: 14px;
+    }
 </style>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
-document.getElementById('loginForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    const rememberMe = document.getElementById('rememberMe').checked;
-    
-    try {
-        const response = await fetch('/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                username: username,
-                password: password,
-                remember_me: rememberMe
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            window.location.href = '/';
-        } else {
-            alert(data.error || 'Login failed');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        alert('An error occurred during login');
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if already logged in
+    const token = document.cookie.split('; ').find(row => row.startsWith('token='));
+    if (token) {
+        window.location.href = '/';
+        return;
     }
+
+    const errorMessage = document.getElementById('error-message');
+    const loginForm = document.getElementById('loginForm');
+
+    loginForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+          // Clear any previous error messages
+        errorMessage.textContent = '';
+        
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const rememberMe = document.getElementById('rememberMe').checked;
+
+        try {
+                const response = await fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ 
+                    username, 
+                    password,
+                    remember_me: rememberMe
+                })
+            });
+            
+            const data = await response.json();
+              if (response.ok) {
+                // Store token info in localStorage
+                if (data.token) {
+                    const token = data.token;
+                    const tokenData = JSON.parse(atob(token.split('.')[1]));
+                    localStorage.setItem('userName', tokenData.username);
+                }
+                
+                // Redirect to the index page or specified redirect URL
+                if (data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    window.location.href = '/';
+                }
+            } else {
+                errorMessage.textContent = data.error || 'Login failed';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            errorMessage.textContent = 'An error occurred during login';
+        }
+    });
 });
 </script>
 {% endblock %}

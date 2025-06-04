@@ -6,8 +6,11 @@ import hashlib
 import jwt
 from collections import defaultdict
 import time
+from flask_cors import CORS
 
 app = Flask(__name__)
+# Configure CORS to allow credentials and specific origins
+CORS(app, resources={r"/*": {"origins": ["http://127.0.0.1:5400"], "supports_credentials": True}})
 app.config['SECRET_KEY'] = 'your-secret-key-here'  # Change this to a secure secret key in production
 app.config['MAX_LOGIN_ATTEMPTS'] = 5  # Maximum failed login attempts
 app.config['LOGIN_TIMEOUT'] = 300  # Timeout in seconds (5 minutes)
@@ -49,12 +52,12 @@ def requires_auth(f):
 def check_auth():
     token = request.cookies.get('token')
     if not token:
-        return True # ddsdsds
+        return False
     try:
         jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
         return True
     except:
-        return True #dsdsds
+        return False
 
 @app.before_request
 def require_login():
@@ -71,6 +74,8 @@ def logout():
 
 @app.route('/')
 def index():
+    if not check_auth():
+        return redirect(url_for('login'))
     return render_template('index.html')
 
 @app.route('/orders')
@@ -258,9 +263,10 @@ def production_history():
             SELECT pr.order, pr.apn, pr.specification, pr.quantity,
                    pr.machine, pr.createdDate,
                    pr.top, pr.bot, pr.front, pr.back, pr.left, pr.right,
-                   ol.specs
+                   ol.specs, pr.user_firstname
             FROM production pr, orders_library ol
             WHERE pr.order = ol.orderNum AND pr.apn = ol.apnID
+            ORDER BY pr.createdDate DESC
         """
 
         with conn.cursor() as cursor:
@@ -270,7 +276,7 @@ def production_history():
         data_list = []
         for row in results:
             (orderNum, apnID, specName, quantity, machine, createdDate,
-             top, bot, front, back, left, right, specs) = row
+             top, bot, front, back, left, right, specs, user_firstname) = row
 
             data_list.append({
                 "orderNumber": orderNum,
@@ -285,7 +291,8 @@ def production_history():
                 "back": back,
                 "left": left,
                 "right": right,
-                "specs": specs
+                "specs": specs,
+                "user_firstname": user_firstname
             })
 
         return jsonify({"data": data_list})
@@ -351,14 +358,21 @@ def submit_production():
                 if available[direction] is not None and produced_qty > available[direction]:
                     return jsonify({
                         "error": f"Quantity for '{direction}' ({produced_qty}) exceeds available quantity ({available[direction]})"
-                    }, 400)
+                    }, 400)            # Get username from token
+            token = request.cookies.get('token')
+            if not token:
+                return jsonify({"error": "Authentication required"}), 401
+            
+            user_data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+            username = user_data.get('username', 'Unknown')
 
             # Insert production record
             insert_query = """
                 INSERT INTO production (
                     `order`, apn, specification, quantity, machine,
-                    top, bot, front, back, `left`, `right`, createdDate
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    top, bot, front, back, `left`, `right`, createdDate,
+                    user_firstname
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             insert_values = (
                 data["orderNumber"],
@@ -372,7 +386,8 @@ def submit_production():
                 direction_values["back"],
                 direction_values["left"],
                 direction_values["right"],
-                timestamp
+                timestamp,
+                username
             )
             cursor.execute(insert_query, insert_values)
 
@@ -751,9 +766,7 @@ def delete_user(user_id):
     finally:
         conn.close()
 
-# @app.route('/login')
-# def login_page():
-#     return render_template('login.html')
+# Route for login page has been moved to the combined login route above
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -784,10 +797,9 @@ def login():
             return jsonify({"error": error_message}), 429
 
         cursor = conn.cursor(dictionary=True)
-        
-        # Hash the password and check credentials
+          # Hash the password and check credentials
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
-        query = "SELECT ID, UserName FROM Users WHERE UserName = %s AND Password = %s"
+        query = "SELECT ID, UserName, FirstName, LastName, Badge FROM Users WHERE UserName = %s AND Password = %s"
         cursor.execute(query, (username, hashed_password))
         user = cursor.fetchone()
         
@@ -802,12 +814,16 @@ def login():
             token = jwt.encode({
                 'user_id': user['ID'],
                 'username': user['UserName'],
+                'firstname': user['FirstName'],
+                'lastname': user['LastName'],
+                'badge': user['Badge'],
                 'exp': expiration
             }, app.config['SECRET_KEY'], algorithm='HS256')
             
             response = make_response(jsonify({
                 "message": "Login successful",
-                "token": token
+                "token": token,
+                "redirect": url_for('index')
             }))
             
             # Set secure cookie with token
@@ -815,8 +831,8 @@ def login():
                 'token', 
                 token,
                 httponly=True,
-                secure=True,
-                samesite='Strict',
+                secure=False,  # Set to True in production with HTTPS
+                samesite='Lax',
                 max_age=2592000 if remember_me else 86400  # 30 days if remember me, else 24 hours
             )
             return response
@@ -863,5 +879,5 @@ def handle_failed_login(ip):
     return attempts_left
 
 if __name__ == '__main__':
-    app.run(host='169.254.103.79', port=5600)
+    app.run(host='127.0.0.1', port=5400, debug=True)
 
