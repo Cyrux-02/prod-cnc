@@ -4,23 +4,11 @@
     <meta charset="UTF-8">    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}ATBU Production{% endblock %}</title>
     
-    {% block styles %}    
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script>
+    {% block styles %}      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">    <script>
     // Base URL configuration for API requests
     const url = 'http://127.0.0.1:5400';
     const apiUrl = `${url}/api`;  // For API routes
     const webUrl = url;  // For web routes
-
-    // Get user info from token when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            const token = document.cookie.split('; ').find(row => row.startsWith('token='));
-            if (token) {
-                const tokenData = JSON.parse(atob(token.split('=')[1].split('.')[1]));
-                document.getElementById('userName').textContent = tokenData.firstname + ' ' + tokenData.lastname;
-                document.getElementById('userBadge').textContent = 'Badge: ' + tokenData.badge;
-            }
-        });
     </script>
     <style>
         body {
@@ -70,17 +58,21 @@
             align-items: center;
             gap: 10px;
             color: #ff7b00;
+            margin-right: 15px;
         }
-
+        
         .user-info i {
             font-size: 1.2em;
+            color: #ff7b00;
         }
 
-        .user-info .user-name {
+        .user-info #userName {
+            color: #e4e6eb;
             font-weight: 500;
+            font-size: 14px;
         }
 
-        .user-info .user-badge {
+        .user-info #userBadge {
             color: #b8bcc4;
             font-size: 0.9em;
         }
@@ -491,11 +483,28 @@
 
         .logout-btn:hover {
             background-color: #e66e00;
+        }        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #ff7b00;
+            margin-right: 15px;
+        }
+        
+        .user-info i {
+            font-size: 1.2em;
+            color: #ff7b00;
         }
 
-        .user-info {
+        .user-info #userName {
+            color: #e4e6eb;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .user-info #userBadge {
             color: #b8bcc4;
-            margin-right: 15px;
+            font-size: 0.9em;
         }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -534,7 +543,15 @@
             <a href="/production" {% if request.path == '/production' %}class="active"{% endif %}>
                 <i class="fas fa-industry"></i>
                 <span>Production</span>
-            </a>            <a href="/monitoring" {% if request.path == '/monitoring' %}class="active"{% endif %}>
+            </a>              <a href="/assembly" {% if request.path == '/assembly' %}class="active"{% endif %}>
+                <i class="fa-solid fa-screwdriver-wrench"></i>
+                <span>Assembly</span>
+            </a>
+            <a href="/assembly_monitoring" {% if request.path == '/assembly_monitoring' %}class="active"{% endif %}>
+                <i class="fas fa-clipboard-list"></i>
+                <span>Assembly Monitoring</span>
+            </a>            
+            <a href="/monitoring" {% if request.path == '/monitoring' %}class="active"{% endif %}>
                 <i class="fas fa-tasks"></i>
                 <span>Production Monitoring</span>
             </a>
@@ -583,20 +600,12 @@
                     document.getElementById('sidebarOverlay').classList.remove('active');
                 }
             }
-        });
-
-        // Display user name from token
+        });        // Initialize user info
         document.addEventListener('DOMContentLoaded', function() {
-            const token = document.cookie.split('; ').find(row => row.startsWith('token='));
-            if (token) {
-                try {
-                    const tokenValue = token.split('=')[1];
-                    const tokenData = JSON.parse(atob(tokenValue.split('.')[1]));
-                    document.getElementById('userNameDisplay').textContent = `${tokenData.FirstName} ${tokenData.LastName}`;
-                } catch (error) {
-                    console.error('Error parsing token:', error);
-                }
-            }
+            const userNameElement = document.getElementById('userName');
+            const userBadgeElement = document.getElementById('userBadge');
+            if (userNameElement) userNameElement.textContent = 'User';
+            if (userBadgeElement) userBadgeElement.textContent = '';
         });
     </script>
     {% block scripts %}{% endblock %}

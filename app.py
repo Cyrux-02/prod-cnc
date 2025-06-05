@@ -14,6 +14,8 @@ CORS(app, resources={r"/*": {"origins": ["http://127.0.0.1:5400"], "supports_cre
 app.config['SECRET_KEY'] = 'your-secret-key-here'  # Change this to a secure secret key in production
 app.config['MAX_LOGIN_ATTEMPTS'] = 5  # Maximum failed login attempts
 app.config['LOGIN_TIMEOUT'] = 300  # Timeout in seconds (5 minutes)
+app.config['SERVER_HOST'] = '127.0.0.1'  # Server IP address
+app.config['SERVER_PORT'] = 5400  # Server port number
 
 # Rate limiting storage
 login_attempts = defaultdict(list)  # Store login attempts with timestamps
@@ -422,28 +424,30 @@ def submit_production():
 
 @app.route('/update_directions', methods=['POST'])
 def update_directions():
+    conn = None
     try:
         data = request.get_json()
-        conn = get_db_connection()
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
+
         order_num = data.get('orderNumber')
         apn_id = data.get('apnID')
 
         if not order_num or not apn_id:
             return jsonify({"error": "Order Number and APN-ID required"}), 400
-        order = None
-        query = """
-            SELECT * 
-            FROM orders_library 
-            WHERE orderNum = %s AND apnID = %s
-        """
-        
 
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({"error": "Database connection failed"}), 500
+
+        # Check if order exists
+        check_query = "SELECT * FROM orders_library WHERE orderNum = %s AND apnID = %s"
         with conn.cursor() as cursor:
-            cursor.execute(query,(order_num,apn_id))
-            order = cursor.fetchone()
-        
-        if not order:
-            return jsonify({"error": "Order not found"}), 404
+            cursor.execute(check_query, (order_num, apn_id))
+            if not cursor.fetchone():
+                return jsonify({"error": "Order not found"}), 404
+
+        # Initialize directions dictionary
         directions = {
             "top": 0,
             "bot": 0,
@@ -452,32 +456,53 @@ def update_directions():
             "front": 0,
             "back": 0
         }
-        directions['top'] = None if int(data.get('top', 0)) == 0 else  int(data.get('top', 0))
-        directions['bot'] = None if int(data.get('bot', 0))  == 0 else int(data.get('bot', 0)) 
-        directions['left'] = None if int(data.get('left', 0)) == 0 else int(data.get('left', 0)) 
-        directions['right'] = None if int(data.get('right', 0)) == 0 else int(data.get('right', 0)) 
-        directions['front'] = None if int(data.get('front', 0)) == 0 else int(data.get('front', 0)) 
-        directions['back'] = None if int(data.get('back', 0)) == 0 else int(data.get('back', 0)) 
-        directions_list = [d for d in ['top', 'bot', 'left', 'right', 'front', 'back'] if directions[d] is not None]
-        directionsString = "-".join(directions_list)
 
-        query = """
-            UPDATE orders_library SET
-                top = %s, bot = %s, front = %s,
-                back = %s, `left` = %s, `right` = %s,
-                directions = %s
-            WHERE orderNum = %s AND apnID = %s
-        """
-        with conn.cursor() as cursor:
-            cursor.execute(query, (
-                directions['top'] ,directions['bot'],directions['front'],directions['back'] ,directions['left'] ,directions['right'], directionsString, order_num, apn_id))
-            conn.commit()
+        # Parse and validate direction values
+        for direction in directions.keys():
+            try:
+                value = data.get(direction, 0)
+                if not isinstance(value, (int, float)) and value is not None:
+                    value = int(value)
+                directions[direction] = None if value == 0 else value
+            except (ValueError, TypeError):
+                return jsonify({"error": f"Invalid value for direction '{direction}'"}), 400
 
-        return jsonify({"message": "Directions updated successfully."})
+        # Create directions string
+        directions_list = [d for d in directions.keys() if directions[d] is not None]
+        directions_string = "-".join(directions_list)
+
+        try:
+            # Update database
+            update_query = """
+                UPDATE orders_library SET
+                    top = %s, bot = %s, front = %s,
+                    back = %s, `left` = %s, `right` = %s,
+                    directions = %s
+                WHERE orderNum = %s AND apnID = %s
+            """
+            with conn.cursor() as cursor:
+                cursor.execute(update_query, (
+                    directions['top'], directions['bot'], directions['front'],
+                    directions['back'], directions['left'], directions['right'],
+                    directions_string, order_num, apn_id
+                ))
+                if cursor.rowcount == 0:
+                    conn.rollback()
+                    return jsonify({"error": "Failed to update directions"}), 500
+                conn.commit()
+
+            return jsonify({"message": "Directions updated successfully"})
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            return jsonify({"error": f"Database error: {str(e)}"}), 500
     except Exception as e:
+        if conn and conn.open:
+            conn.rollback()
         return jsonify({"error": f"Server error: {str(e)}"}), 500
     finally:
-        conn.close()
+        if conn and conn.open:
+            conn.close()
 
 @app.route('/get_remaining_quantities', methods=['GET'])
 def get_remaining_quantities():
@@ -878,6 +903,41 @@ def handle_failed_login(ip):
     attempts_left = app.config['MAX_LOGIN_ATTEMPTS'] - len(login_attempts[ip])
     return attempts_left
 
+@app.route('/assembly_monitoring')
+def assembly_monitoring():
+    return render_template('assembly_monitoring.html')
+
+@app.route('/assembly_monitoring_data')
+def assembly_monitoring_data():
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database connection error"}), 500
+
+    try:
+        query = """
+            SELECT 
+                ol.orderNum as 'order',
+                ol.apnID as apn_id,
+                ol.specification,
+                ol.specs,
+                ol.planned_quantity,
+                COALESCE(SUM(a.quantity), 0) as quantity_assembled,
+                ol.planned_quantity - COALESCE(SUM(a.quantity), 0) as remaining_quantity
+            FROM orders_library ol
+            LEFT JOIN assembly a ON ol.orderNum = a.orderNumber AND ol.apnID = a.apnID
+            GROUP BY ol.orderNum, ol.apnID, ol.specification, ol.specs, ol.planned_quantity
+            ORDER BY ol.orderNum DESC
+        """
+        
+        with conn.cursor(dictionary=True) as cursor:
+            cursor.execute(query)
+            orders = cursor.fetchall()
+            return jsonify({"orders": orders})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5400, debug=True)
 

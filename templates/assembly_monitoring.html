@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Assembly Monitoring{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="section-header">
+        <h3>Assembly Monitoring</h3>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="monitoringTable">
+            <thead>
+                <tr>
+                    <th>Order</th>
+                    <th>APN ID</th>
+                    <th>Specification</th>
+                    <th>Spec</th>
+                    <th>Planned Quantity</th>
+                    <th>Quantity Assembled</th>
+                    <th>Remaining Quantity</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="monitoringTableBody">
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .table-wrapper {
+        margin-top: 20px;
+        overflow-x: auto;
+    }
+
+    #monitoringTable {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    #monitoringTable th,
+    #monitoringTable td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #2c2f35;
+    }
+
+    #monitoringTable th {
+        height: 50px;
+        text-align: center;
+        background-color: rgba(26, 29, 33, 0.5);
+    }
+
+    .completed {
+        color: #4caf50;
+        font-weight: bold;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initial load and setup auto-refresh
+        loadAssemblyData();
+        setInterval(loadAssemblyData, 5000); // Refresh every 5 seconds
+
+        // Listen for new assembly data from assembly.html
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'newAssembly') {
+                addNewAssemblyToTable(event.data.data);
+            }
+        });
+    });
+
+    async function loadAssemblyData() {
+        try {
+            const response = await fetch(`${url}/assembly_monitoring_data`);
+            if (!response.ok) throw new Error('Network response was not ok');
+            const data = await response.json();
+            
+            const tbody = document.getElementById('monitoringTableBody');
+            tbody.innerHTML = ''; // Clear existing rows
+            
+            if (data.orders && data.orders.length > 0) {
+                data.orders.forEach(order => addNewAssemblyToTable(order));
+            }
+        } catch (error) {
+            console.error('Error loading assembly data:', error);
+        }
+    }
+
+    function addNewAssemblyToTable(assemblyData) {
+        const tbody = document.getElementById('monitoringTableBody');
+        const row = document.createElement('tr');
+        
+        // Calculate remaining quantity if not provided
+        const remaining = assemblyData.remaining_quantity ?? 
+            (assemblyData.planned_quantity - assemblyData.quantity_assembled);
+        const status = remaining <= 0 ? 'Completed' : 'In Progress';
+        
+        row.innerHTML = `
+            <td>${assemblyData.order}</td>
+            <td>${assemblyData.apn_id}</td>
+            <td>${assemblyData.specification}</td>
+            <td>${assemblyData.specs}</td>
+            <td>${assemblyData.planned_quantity}</td>
+            <td>${assemblyData.quantity_assembled}</td>
+            <td>${remaining}</td>
+            <td class="${status === 'Completed' ? 'completed' : ''}">${status}</td>
+        `;
+
+        // Insert new row at the top of the table
+        if (tbody.firstChild) {
+            tbody.insertBefore(row, tbody.firstChild);
+        } else {
+            tbody.appendChild(row);
+        }
+    }
+</script>
+{% endblock %}

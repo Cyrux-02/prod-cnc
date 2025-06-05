@@ -373,8 +373,9 @@
                         <td>${record.specification}</td>
                         <td>${record.quantityProduced}</td>
                         <td>${directions.join(', ')}</td>
-                        <td>${record.machine}</td>                        <td>${record.specs ?? "N/A"}</td>
-                        <td>${record.user_name ?? "N/A"}</td>
+                        <td>${record.machine}</td>                        
+                        <td>${record.specs ?? "N/A"}</td>
+                        <td>${record.user_firstname ?? "N/A"}</td>
                     `;
                     tbody.appendChild(row);
                 });

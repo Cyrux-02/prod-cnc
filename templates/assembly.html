@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block title %}Assembly{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="section-header">
+        <h3>Assembly Entry</h3>
+    </div>
+
+    <form id="assemblyForm">
+        <div class="form-group">
+            <label for="orderSelect">Order Number:</label>
+            <select id="orderSelect" required>
+                <option value="">Select Order</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="apnSelect">APN ID:</label>
+            <select id="apnSelect" required disabled>
+                <option value="">Select APN ID</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <div id="orderDetails" style="background: rgba(26, 29, 33, 0.5); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                <p><strong>Specification:</strong> <span id="specificationDisplay">N/A</span></p>
+                <p><strong>Planned Quantity:</strong> <span id="plannedQtyDisplay">N/A</span></p>
+                <p><strong>Spec:</strong> <span id="specDisplay">N/A</span></p>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="quantity">Quantity_assembled:</label>
+            <input type="number" id="Quantity_Assembled" required min="1">
+        </div>
+
+        <!-- Additional assembly-specific fields can be added here -->
+
+        <button type="submit" class="send-btn">Submit Assembly</button>
+    </form>
+
+    <div class="section-header">
+        <h3>Assembly History</h3>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="assemblyTable">
+            <thead>
+                <tr>
+                    <th>Date & Time</th>
+                    <th>Order</th>
+                    <th>APN ID</th>
+                    <th>Specification</th>
+                    <th>Spec</th>
+                    <th>Quantity_Assembled</th>
+                    <th>User</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Assembly history will be populated here -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+    }
+
+    select, input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #2c2f35;
+        border-radius: 4px;
+        background-color: #1a1d21;
+        color: #e4e6eb;
+    }
+
+    select:disabled {
+        background-color: #14171a;
+        cursor: not-allowed;
+    }
+
+    .send-btn {
+        background: linear-gradient(135deg, #4caf50, #43a047);
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .send-btn:hover {
+        background: linear-gradient(135deg, #43a047, #388e3c);
+    }
+
+    .table-wrapper {
+        margin-top: 30px;
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+
+    th, td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #2c2f35;
+    }
+
+    th {
+        background-color: rgba(26, 29, 33, 0.5);
+        font-weight: 500;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const orderSelect = document.getElementById('orderSelect');
+        const apnSelect = document.getElementById('apnSelect');
+        let orderData = null;
+
+        // Load orders when page loads
+        loadOrders();
+
+        // Function to load orders
+        async function loadOrders() {
+            try {
+                const response = await fetch(`${url}/all_orders`);
+                const data = await response.json();
+                const uniqueOrders = [...new Set(data.data.map(order => order.orderNumber))];
+                orderSelect.innerHTML = '<option value="">Select Order</option>';
+                uniqueOrders.forEach(order => {
+                    const option = document.createElement('option');
+                    option.value = order;
+                    option.textContent = order;
+                    orderSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading orders:', error);
+            }
+        }
+
+        // When order is selected, load APNs for that order
+        orderSelect.addEventListener('change', async function() {
+            const selectedOrder = this.value;
+            apnSelect.disabled = !selectedOrder;
+            apnSelect.innerHTML = '<option value="">Select APN ID</option>';
+            resetDetails();
+            
+            if (selectedOrder) {
+                try {
+                    const response = await fetch(`${url}/all_orders`);
+                    const data = await response.json();
+                    
+                    const orderData = data.data.filter(order => order.orderNumber === selectedOrder);
+                    const uniqueAPNs = [...new Set(orderData.map(order => order.apnID))];
+                    
+                    uniqueAPNs.forEach(apn => {
+                        const option = document.createElement('option');
+                        option.value = apn;
+                        option.textContent = apn;
+                        apnSelect.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error('Error loading APNs:', error);
+                }
+            }
+        });
+
+        // When APN is selected, show specifications and planned quantity
+        apnSelect.addEventListener('change', async function() {
+            const selectedOrder = orderSelect.value;
+            const selectedAPN = this.value;
+            
+            if (selectedOrder && selectedAPN) {
+                try {
+                    const response = await fetch(`${url}/all_orders`);
+                    const data = await response.json();
+                    
+                    orderData = data.data.find(order => 
+                        order.orderNumber === selectedOrder && order.apnID === selectedAPN
+                    );
+                    
+                    if (orderData) {
+                        // Update specification display
+                        document.getElementById('specificationDisplay').textContent = orderData.specification || "N/A";
+                        document.getElementById('plannedQtyDisplay').textContent = orderData.plannedQuantity || "N/A";
+                        document.getElementById('specDisplay').textContent = orderData.specs || "N/A";
+                    }
+                } catch (error) {
+                    console.error('Error loading specifications:', error);
+                }
+            }
+        });
+
+        function resetDetails() {
+            document.getElementById('specificationDisplay').textContent = 'N/A';
+            document.getElementById('plannedQtyDisplay').textContent = 'N/A';
+            document.getElementById('specDisplay').textContent = 'N/A';
+        }
+
+        // Add form submission handler
+        document.getElementById('assemblyForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+              // Get all form data
+            const assemblyData = {
+                orderNumber: document.getElementById('orderSelect').value,
+                apnID: document.getElementById('apnSelect').value,
+                specification: document.getElementById('specificationDisplay').textContent,
+                quantity: parseInt(document.getElementById('Quantity_Assembled').value)
+            };
+
+            try {
+                const response = await fetch(`${url}/submit_assembly`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify(assemblyData)
+                });                const result = await response.json();                if (response.ok) {
+                    alert('Assembly submitted successfully!');
+                    
+                    // Send data to assembly_monitoring.html
+                    const monitoringData = {
+                        order: assemblyData.orderNumber,
+                        apn_id: assemblyData.apnID,
+                        specification: assemblyData.specification,
+                        specs: document.getElementById('specDisplay').textContent,
+                        planned_quantity: parseInt(document.getElementById('plannedQtyDisplay').textContent),
+                        quantity_assembled: assemblyData.quantity,
+                        remaining_quantity: parseInt(document.getElementById('plannedQtyDisplay').textContent) - assemblyData.quantity
+                    };
+
+                    // Send message to all open windows
+                    window.opener?.postMessage({ type: 'newAssembly', data: monitoringData }, '*');
+                    
+                    // Reset form
+                    this.reset();
+                    apnSelect.disabled = true;
+                    document.getElementById('specificationDisplay').textContent = 'N/A';
+                    document.getElementById('plannedQtyDisplay').textContent = 'N/A';
+                    document.getElementById('specDisplay').textContent = 'N/A';
+                    loadAssemblyHistory();
+                } else {
+                    alert(result.error || 'Error submitting assembly');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error submitting assembly');
+            }
+        });
+
+        // Load assembly history when page loads
+        loadAssemblyHistory();
+
+        // Function to load assembly history
+        async function loadAssemblyHistory() {
+            try {
+                const response = await fetch(`${url}/assembly_history`);
+                const data = await response.json();
+                
+                const tbody = document.querySelector('#assemblyTable tbody');
+                tbody.innerHTML = '';
+                
+                data.data.forEach(record => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${record.dateTime}</td>
+                        <td>${record.orderNumber}</td>
+                        <td>${record.apnID}</td>
+                        <td>${record.specification}</td>
+                        <td>${record.specs ?? "N/A"}</td>
+                        <td>${record.quantityAssembled}</td>
+                        <td>${record.user_name ?? "N/A"}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error loading assembly history:', error);
+            }
+        }
+    });
+</script>
+{% endblock %}
