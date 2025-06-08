@@ -61,6 +61,19 @@
         color: #fff;
         border-color: #ff6600;
     }
+
+    .filter-option {
+        margin-top: 10px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .filter-option input[type="checkbox"] {
+        cursor: pointer;
+    }
+    .filter-option label {
+        cursor: pointer;
+    }
 </style>
 
 <div class="container">
@@ -125,8 +138,7 @@
                     <label for="filterDateTo">To:</label>
                     <input type="date" id="filterDateTo">
                 </div>
-            </div>
-            <div class="filter-actions">
+            </div>            <div class="filter-actions">
                 <button onclick="fetchFilteredHistory()">Apply Filter</button>
                 <button onclick="fetchdata()" class="secondary-btn">Show All History</button>
             </div>
@@ -153,11 +165,11 @@
 {% block scripts %}
 <script>
     let history = [];
-    let allOrders = [];    function fetchdata() {
+    let allOrders = [];      function fetchdata() {
         fetch(`/all_orders`)
             .then(res => res.json())
             .then(data => {
-                console.log('Received data:', data.data); // Debug log
+                console.log('Received data:', data.data);
                 history = data.data;
                 allOrders = data.data;
                 displayHistory();
@@ -257,7 +269,8 @@
             checkedBoxes.forEach(box => box.checked = false);
         })
         .catch(console.error);
-    }    function displayHistory() {
+    }    
+    function displayHistory() {
         const table = document.getElementById("historyTable");
         const body = document.getElementById("historyTableBody");
         table.style.display = "table";

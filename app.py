@@ -87,6 +87,9 @@ def orders():
 @app.route('/specs')
 def specs():
     return render_template('specs.html')
+@app.route('/production')
+def production():
+    return render_template('production.html')
 
 @app.route('/monitoring')
 def monitoring():
@@ -212,12 +215,15 @@ def all_orders():
         return jsonify({"error": "Database connection error"}), 500
 
     try:
+        # Read filter_production query parameter, default False if not provided
+        filter_production = request.args.get('filter_production', 'false').lower() == 'true'        # Base query with production filter for holders
         query = """
-            SELECT ol.orderNum, ol.apnID,ol.specs, s.name, ol.planned_quantity,
+            SELECT ol.orderNum, ol.apnID, ol.specs, s.name, ol.planned_quantity,
                    ol.createdDate, ol.top, ol.bot, ol.front, ol.back,
                    ol.left, ol.right
             FROM orders_library ol
             JOIN specifications s ON ol.specification = s.id
+            WHERE s.name NOT IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')
         """
 
         with conn.cursor() as cursor:
@@ -226,7 +232,7 @@ def all_orders():
 
         data_list = []
         for row in results:
-            (orderNum, apnID,specs, specName, plannedQty, createdDate,
+            (orderNum, apnID, specs, specName, plannedQty, createdDate,
              top, bot, front, back, left, right) = row
             
             data_list.append({
@@ -245,14 +251,12 @@ def all_orders():
             })
 
         return jsonify({"data": data_list})
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
     finally:
         conn.close()
-
-@app.route('/production')
-def production():
-    return render_template('production.html')
 
 @app.route('/production_history', methods=['GET'])
 def production_history():
@@ -422,6 +426,9 @@ def submit_production():
         if conn:
             conn.close()       
 
+from flask import request, jsonify
+import traceback
+
 @app.route('/update_directions', methods=['POST'])
 def update_directions():
     conn = None
@@ -440,9 +447,9 @@ def update_directions():
         if not conn:
             return jsonify({"error": "Database connection failed"}), 500
 
-        # Check if order exists
+        # Check if order exists - use buffered cursor to consume all results and avoid 'Unread result found'
         check_query = "SELECT * FROM orders_library WHERE orderNum = %s AND apnID = %s"
-        with conn.cursor() as cursor:
+        with conn.cursor(buffered=True) as cursor:  # <-- buffered=True added here
             cursor.execute(check_query, (order_num, apn_id))
             if not cursor.fetchone():
                 return jsonify({"error": "Order not found"}), 404
@@ -471,38 +478,45 @@ def update_directions():
         directions_list = [d for d in directions.keys() if directions[d] is not None]
         directions_string = "-".join(directions_list)
 
-        try:
-            # Update database
-            update_query = """
-                UPDATE orders_library SET
-                    top = %s, bot = %s, front = %s,
-                    back = %s, `left` = %s, `right` = %s,
-                    directions = %s
-                WHERE orderNum = %s AND apnID = %s
-            """
-            with conn.cursor() as cursor:
-                cursor.execute(update_query, (
-                    directions['top'], directions['bot'], directions['front'],
-                    directions['back'], directions['left'], directions['right'],
-                    directions_string, order_num, apn_id
-                ))
-                if cursor.rowcount == 0:
-                    conn.rollback()
-                    return jsonify({"error": "Failed to update directions"}), 500
-                conn.commit()
-
-            return jsonify({"message": "Directions updated successfully"})
-        except Exception as e:
-            if conn:
+        # Update database
+        update_query = """
+            UPDATE orders_library SET
+                top = %s, bot = %s, front = %s,
+                back = %s, `left` = %s, `right` = %s,
+                directions = %s
+            WHERE orderNum = %s AND apnID = %s
+        """
+        with conn.cursor() as cursor:
+            cursor.execute(update_query, (
+                directions['top'], directions['bot'], directions['front'],
+                directions['back'], directions['left'], directions['right'],
+                directions_string, order_num, apn_id
+            ))
+            if cursor.rowcount == 0:
                 conn.rollback()
-            return jsonify({"error": f"Database error: {str(e)}"}), 500
+                return jsonify({"error": "Failed to update directions"}), 500
+            conn.commit()
+
+        return jsonify({"message": "Directions updated successfully"})
+
     except Exception as e:
-        if conn and conn.open:
-            conn.rollback()
+        import traceback
+        traceback.print_exc()  # Logs the full error to terminal
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
         return jsonify({"error": f"Server error: {str(e)}"}), 500
+
     finally:
-        if conn and conn.open:
-            conn.close()
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
+
+
 
 @app.route('/get_remaining_quantities', methods=['GET'])
 def get_remaining_quantities():
@@ -556,26 +570,34 @@ def get_orders():
     conn = get_db_connection()
     if not conn:
         return jsonify({"error": "Database connection error"}), 500
-
+    
     try:
-        query = """
-            SELECT orderNum, apnID, specification, planned_quantity
-            FROM orders_library
+        # Read filter_production query parameter, default False if not provided
+        filter_production = request.args.get('filter_production', 'false').lower() == 'true'
+
+        # Base query with JOIN to specifications table
+        query = """            SELECT ol.orderNum, ol.apnID, ol.specification, s.name as spec_name, 
+                   ol.specs, ol.planned_quantity
+            FROM orders_library ol
+            JOIN specifications s ON ol.specification = s.id
+            WHERE s.name NOT IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')
         """
+        
         with conn.cursor() as cursor:
             cursor.execute(query)
             results = cursor.fetchall()
-
+            
         orders = []
         for row in results:
             orders.append({
-                "orderNum": row[0],
+                "orderNum": row[0],  # Changed to match what frontend expects
                 "apnID": row[1],
-                "specification": row[2],
-                "plannedQuantity": row[3]
+                "specification": row[3],  # Using the name from specifications table
+                "specs": row[4],
+                "plannedQuantity": row[5]
             })
 
-        return jsonify({"data": orders})
+        return jsonify({"data": orders})  # Changed 'orders' to 'data' to match frontend expectation
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
@@ -939,5 +961,5 @@ def assembly_monitoring_data():
     finally:
         conn.close()
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=5400, debug=True)
+    app.run(host='127.0.0.1', port=5600, debug=True)
 

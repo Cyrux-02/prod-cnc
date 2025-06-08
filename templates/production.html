@@ -139,23 +139,50 @@
         let orderData = null;
         
         loadOrders();
-        loadProductionHistory();
-
-        // Load orders into the select
+        loadProductionHistory();        // Load orders into the select
         async function loadOrders() {
             try {
                 const response = await fetch(`${url}/api/orders`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
                 const data = await response.json();
-                const uniqueOrders = [...new Set(data.data.map(order => order.orderNum))];
+                console.log('Orders API response:', data); // Debug log
+                
+                // Validate data structure
+                if (!data || typeof data !== 'object') {
+                    throw new Error('Invalid response format: expected an object');
+                }
+                
+                if (!data.data || !Array.isArray(data.data)) {
+                    throw new Error('Invalid response format: data.data should be an array');
+                }
+                
+                // Filter out invalid orders and extract unique order numbers
+                const validOrders = data.data.filter(order => order && order.orderNum);
+                const uniqueOrders = [...new Set(validOrders.map(order => order.orderNum))];
+                
+                // Update the select element
                 orderSelect.innerHTML = '<option value="">Select Order</option>';
+                if (uniqueOrders.length === 0) {
+                    orderSelect.innerHTML = '<option value="">No orders available</option>';
+                    orderSelect.disabled = true;
+                    return;
+                }
+                
                 uniqueOrders.forEach(order => {
                     const option = document.createElement('option');
                     option.value = order;
                     option.textContent = order;
                     orderSelect.appendChild(option);
                 });
+                
+                orderSelect.disabled = false;
             } catch (error) {
                 console.error('Error loading orders:', error);
+                orderSelect.innerHTML = '<option value="">Error: ' + error.message + '</option>';
+                orderSelect.disabled = true;
             }
         }
 
