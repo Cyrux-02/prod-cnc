@@ -8,6 +8,18 @@
         <h3>Assembly Monitoring</h3>
     </div>
 
+    <div class="chart-controls">
+        <select id="chartViewType">
+            <option value="daily">Daily View</option>
+            <option value="weekly">Weekly View</option>
+            <option value="monthly">Monthly View</option>
+        </select>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="productionChart"></canvas>
+    </div>
+
     <div class="table-wrapper">
         <table id="monitoringTable">
             <thead>
@@ -29,6 +41,32 @@
 </div>
 
 <style>
+    .container {
+        padding: 20px;
+    }
+
+    .chart-container {
+        margin: 20px 0;
+        height: 400px;
+        background-color: rgba(26, 29, 33, 0.3);
+        border-radius: 8px;
+        padding: 20px;
+    }
+
+    .chart-controls {
+        margin: 20px 0;
+        display: flex;
+        gap: 10px;
+    }
+
+    .chart-controls select {
+        padding: 8px;
+        border-radius: 4px;
+        background-color: rgba(26, 29, 33, 0.5);
+        color: white;
+        border: 1px solid #2c2f35;
+    }
+
     .table-wrapper {
         margin-top: 20px;
         overflow-x: auto;
@@ -58,53 +96,168 @@
     }
 </style>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initial load and setup auto-refresh
-        loadAssemblyData();
-        setInterval(loadAssemblyData, 5000); // Refresh every 5 seconds
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-        // Listen for new assembly data from assembly.html
+<script>
+    let productionChart = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadAssemblyData();
+        loadChartData();
+        setInterval(() => {
+            loadAssemblyData();
+            loadChartData();
+        }, 5000); // Refresh every 5 seconds
+
+        document.getElementById('chartViewType').addEventListener('change', loadChartData);
+
+        // Listen for new assembly data from assembly.html (if used)
         window.addEventListener('message', function(event) {
             if (event.data && event.data.type === 'newAssembly') {
                 addNewAssemblyToTable(event.data.data);
+                loadChartData(); // Refresh chart when new data arrives
             }
         });
     });
 
-    async function loadAssemblyData() {
+    async function loadChartData() {
         try {
-            const response = await fetch(`${url}/assembly_monitoring_data`);
+            const response = await fetch('/assembly_chart_data');
             if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
             
+            // If chart exists, destroy it before creating a new one
+            if (productionChart) {
+                productionChart.destroy();
+            }
+
+            // Create new chart
+            const ctx = document.getElementById('productionChart').getContext('2d');
+            
+            // Assign random colors to datasets
+            const datasets = data.datasets.map(dataset => ({
+                ...dataset,
+                backgroundColor: getRandomColor(0.2),
+                borderColor: getRandomColor(1),
+                fill: true
+            }));
+
+            productionChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                color: 'white'
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Date',
+                                color: 'white'
+                            },
+                            ticks: {
+                                color: 'white'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Quantity',
+                                color: 'white'
+                            },
+                            ticks: {
+                                color: 'white'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error loading chart data:', error);
+        }
+    }
+
+    function getRandomColor(alpha) {
+        const r = Math.floor(Math.random() * 255);
+        const g = Math.floor(Math.random() * 255);
+        const b = Math.floor(Math.random() * 255);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    async function loadAssemblyData() {
+        try {
+            const response = await fetch('/assembly_monitoring_data');
+            if (!response.ok) throw new Error('Network response was not ok');
+            const data = await response.json();
+
             const tbody = document.getElementById('monitoringTableBody');
             tbody.innerHTML = ''; // Clear existing rows
-            
+
             if (data.orders && data.orders.length > 0) {
                 data.orders.forEach(order => addNewAssemblyToTable(order));
+            } else {
+                // Optional: show "No data" row when empty
+                const noDataRow = document.createElement('tr');
+                noDataRow.innerHTML = `<td colspan="8" style="text-align:center;">No assembly data available.</td>`;
+                tbody.appendChild(noDataRow);
             }
         } catch (error) {
             console.error('Error loading assembly data:', error);
+
+            // Optional: show error message on table
+            const tbody = document.getElementById('monitoringTableBody');
+            tbody.innerHTML = '';
+            const errorRow = document.createElement('tr');
+            errorRow.innerHTML = `<td colspan="8" style="color:red; text-align:center;">Failed to load assembly data.</td>`;
+            tbody.appendChild(errorRow);
         }
     }
 
     function addNewAssemblyToTable(assemblyData) {
         const tbody = document.getElementById('monitoringTableBody');
         const row = document.createElement('tr');
-        
-        // Calculate remaining quantity if not provided
-        const remaining = assemblyData.remaining_quantity ?? 
-            (assemblyData.planned_quantity - assemblyData.quantity_assembled);
+
+        // Use fallback default values to avoid undefined errors
+        const order = assemblyData.order ?? '';
+        const apn_id = assemblyData.apn_id ?? '';
+        const specification = assemblyData.specification ?? '';
+        const specs = assemblyData.specs ?? '';
+        const planned_quantity = assemblyData.planned_quantity ?? 0;
+        const quantity_assembled = assemblyData.quantity_assembled ?? 0;
+
+        const remaining = assemblyData.remaining_quantity ?? (planned_quantity - quantity_assembled);
         const status = remaining <= 0 ? 'Completed' : 'In Progress';
-        
+
         row.innerHTML = `
-            <td>${assemblyData.order}</td>
-            <td>${assemblyData.apn_id}</td>
-            <td>${assemblyData.specification}</td>
-            <td>${assemblyData.specs}</td>
-            <td>${assemblyData.planned_quantity}</td>
-            <td>${assemblyData.quantity_assembled}</td>
+            <td>${order}</td>
+            <td>${apn_id}</td>
+            <td>${specification}</td>
+            <td>${specs}</td>
+            <td>${planned_quantity}</td>
+            <td>${quantity_assembled}</td>
             <td>${remaining}</td>
             <td class="${status === 'Completed' ? 'completed' : ''}">${status}</td>
         `;

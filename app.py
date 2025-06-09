@@ -954,16 +954,20 @@ def assembly_monitoring_data():
     try:
         query = """
             SELECT 
-                ol.orderNum as 'order',
-                ol.apnID as apn_id,
-                ol.specification,
+                ol.orderNum AS `order`,
+                ol.apnID AS apn_id,
+                MAX(a.specification) AS specification,
                 ol.specs,
                 ol.planned_quantity,
-                COALESCE(SUM(a.quantity), 0) as quantity_assembled,
-                ol.planned_quantity - COALESCE(SUM(a.quantity), 0) as remaining_quantity
+                COALESCE(SUM(a.quantity_assembled), 0) AS quantity_assembled,
+                ol.planned_quantity - COALESCE(SUM(a.quantity_assembled), 0) AS remaining_quantity
             FROM orders_library ol
-            LEFT JOIN assembly a ON ol.orderNum = a.orderNumber AND ol.apnID = a.apnID
-            GROUP BY ol.orderNum, ol.apnID, ol.specification, ol.specs, ol.planned_quantity
+            LEFT JOIN assembly a ON ol.orderNum = a.`order` AND ol.apnID = a.apn
+            GROUP BY 
+                ol.orderNum, 
+                ol.apnID, 
+                ol.specs, 
+                ol.planned_quantity
             ORDER BY ol.orderNum DESC
         """
         
@@ -973,9 +977,88 @@ def assembly_monitoring_data():
             return jsonify({"orders": orders})
 
     except Exception as e:
+        print("Error in /assembly_monitoring_data:", e)
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
+        
+        
+@app.route('/assembly_chart_data')
+def assembly_chart_data():
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database connection error"}), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+        
+        # Query to get daily production quantities for in-progress orders
+        query = """
+            SELECT 
+                DATE(p.createdDate) as date,
+                p.order,
+                ol.planned_quantity,
+                SUM(p.quantity) as daily_quantity,
+                ol.specification
+            FROM production p
+            JOIN orders_library ol ON p.order = ol.orderNum AND p.apn = ol.apnID
+            WHERE ol.planned_quantity > (
+                SELECT COALESCE(SUM(quantity), 0)
+                FROM production p2
+                WHERE p2.order = ol.orderNum AND p2.apn = ol.apnID
+            )
+            GROUP BY DATE(p.createdDate), p.order, ol.planned_quantity, ol.specification
+            ORDER BY date DESC
+            LIMIT 30
+        """
+        
+        cursor.execute(query)
+        results = cursor.fetchall()
+        
+        chart_data = {
+            'labels': [],
+            'datasets': [],
+            'orders': {}
+        }
+        
+        # Process the results
+        for row in results:
+            date_str = row['date'].strftime('%Y-%m-%d')
+            if date_str not in chart_data['labels']:
+                chart_data['labels'].append(date_str)
+            
+            order_id = row['order']
+            if order_id not in chart_data['orders']:
+                chart_data['orders'][order_id] = {
+                    'label': f"Order {order_id} ({row['specification']})",
+                    'data': [],
+                    'planned_quantity': row['planned_quantity']
+                }
+            
+            chart_data['orders'][order_id]['data'].append({
+                'x': date_str,
+                'y': row['daily_quantity']
+            })
+        
+        # Convert orders dict to datasets array
+        for order_id, order_data in chart_data['orders'].items():
+            chart_data['datasets'].append({
+                'label': order_data['label'],
+                'data': order_data['data'],
+                'tension': 0.4,
+                'planned_quantity': order_data['planned_quantity']
+            })
+        
+        return jsonify(chart_data)
+
+    except Exception as e:
+        print("Error:", e)
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+
 
 @app.route('/assembly_history', methods=['GET'])
 def assembly_history():
@@ -986,25 +1069,25 @@ def assembly_history():
     try:
         query = """
             SELECT 
-                a.orderNumber, 
-                a.apnID, 
+                a.`order`, 
+                a.apn, 
                 a.specification,
                 ol.specs,
-                a.quantity as quantityAssembled,
+                a.quantity_assembled as quantityAssembled,
                 a.created_date as dateTime,
-                a.user_name
+                a.user_firstname
             FROM assembly a
-            LEFT JOIN orders_library ol ON a.orderNumber = ol.orderNum AND a.apnID = ol.apnID
+            LEFT JOIN orders_library ol ON a.`order` = ol.orderNum AND a.apn = ol.apnID
             ORDER BY a.created_date DESC
         """
-        
+
         with conn.cursor() as cursor:
             cursor.execute(query)
             results = cursor.fetchall()
-            
+
         data_list = []
         for row in results:
-            (orderNumber, apnID, specification, specs, quantityAssembled, dateTime, user_name) = row
+            (orderNumber, apnID, specification, specs, quantityAssembled, dateTime, user_firstname) = row
             data_list.append({
                 "orderNumber": orderNumber,
                 "apnID": apnID,
@@ -1012,7 +1095,7 @@ def assembly_history():
                 "specs": specs,
                 "quantityAssembled": quantityAssembled,
                 "dateTime": dateTime.strftime("%Y-%m-%d %H:%M:%S") if hasattr(dateTime, "strftime") else str(dateTime),
-                "user_name": user_name
+                "user_name": user_firstname
             })
 
         return jsonify({"data": data_list})
@@ -1021,6 +1104,7 @@ def assembly_history():
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
+
 
 @app.route('/submit_assembly', methods=['POST'])
 def submit_assembly():
@@ -1037,51 +1121,55 @@ def submit_assembly():
         token = request.cookies.get('token')
         if not token:
             return jsonify({"error": "Authentication required"}), 401
-        
+
         user_data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
-        username = user_data.get('FirstName', 'Unknown')        # Prepare and validate data for insertion
-        order_number = data.get('orderNumber')
+        username = user_data.get('FirstName', 'Unknown')
+
+        # Extract fields from frontend JSON (which uses camelCase keys)
+        order_number = data.get('orderNumber')  # frontend sends "orderNumber"
         apn_id = data.get('apnID')
         specification = data.get('specification')
         quantity = data.get('quantity')
-        
-        # Validate quantity is a positive number
+
+        # Validate quantity
         try:
             quantity = int(quantity)
             if quantity <= 0:
                 return jsonify({"error": "Quantity must be greater than 0"}), 400
         except (ValueError, TypeError):
             return jsonify({"error": "Invalid quantity value"}), 400
-            
+
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+        # Check for missing fields
         if not all([order_number, apn_id, specification, quantity]):
             return jsonify({"error": "Missing required fields"}), 400
 
-        # Insert assembly record
+        # ✅ Use correct SQL column names — especially `order` (not `orderNumber`)
         query = """
             INSERT INTO assembly 
-            (orderNumber, apnID, specification, quantity, user_name, created_date)
+            (`order`, apn, specification, quantity_assembled, user_firstname, created_date)
             VALUES (%s, %s, %s, %s, %s, %s)
         """
         with conn.cursor() as cursor:
             cursor.execute(query, (
-                order_number,
-                apn_id,
-                specification,
-                quantity,
-                username,
-                timestamp
+                order_number,        # maps to SQL `order` column
+                apn_id,              # maps to SQL `apn`
+                specification,       # maps to SQL `specification`
+                quantity,            # maps to SQL `quantity_assembled`
+                username,            # maps to SQL `user_firstname`
+                timestamp            # maps to SQL `created_date`
             ))
             conn.commit()
 
         return jsonify({"message": "Assembly submitted successfully"})
 
     except Exception as e:
-        print("Error:", e)  # Log the error
+        print("Error:", e)
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
+
 
 @app.route('/assembly')
 def assembly():
