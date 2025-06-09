@@ -196,8 +196,7 @@
                 try {
                     const response = await fetch(`${url}/all_orders`);
                     const data = await response.json();
-                    
-                    const orderData = data.data.filter(order => order.orderNumber === selectedOrder);
+                      const orderData = data.data.filter(order => order.orderNum === selectedOrder);
                     const uniqueAPNs = [...new Set(orderData.map(order => order.apnID))];
                     
                     uniqueAPNs.forEach(apn => {
@@ -233,9 +232,8 @@
                 try {
                     const response = await fetch(`${url}/all_orders`);
                     const data = await response.json();
-                    
-                    orderData = data.data.find(order => 
-                        order.orderNumber === selectedOrder && order.apnID === selectedAPN
+                      orderData = data.data.find(order => 
+                        order.orderNum === selectedOrder && order.apnID === selectedAPN
                     );
                     
                     if (orderData) {
@@ -260,9 +258,8 @@
                         document.getElementById('dirFront').disabled = orderData.front == null || orderData.front === 0;
                         document.getElementById('dirBack').disabled = orderData.back == null || orderData.back === 0;
                         document.getElementById('dirLeft').disabled = orderData.left == null || orderData.left === 0;
-                        document.getElementById('dirRight').disabled = orderData.right == null || orderData.right === 0;
-                          // Update specification display
-                        document.getElementById('specificationDisplay').textContent = orderData.specification || "N/A";
+                        document.getElementById('dirRight').disabled = orderData.right == null || orderData.right === 0;                          // Update specification display
+                        document.getElementById('specificationDisplay').textContent = orderData.specification_name || "N/A";
                         document.getElementById('plannedQtyDisplay').textContent = orderData.plannedQuantity || "N/A";
                         document.getElementById('specDisplay').textContent = orderData.specs || "N/A";
 

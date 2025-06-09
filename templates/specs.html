@@ -180,10 +180,8 @@
 
     function populateDropdowns(data) {
         const orderSelect = document.getElementById("orderSelect");
-        const apnSelect = document.getElementById("apnSelect");
-
-        // Populate order dropdown
-        const uniqueOrders = [...new Set(data.map(item => item.orderNumber))];
+        const apnSelect = document.getElementById("apnSelect");        // Populate order dropdown
+        const uniqueOrders = [...new Set(data.map(item => item.orderNum))];
         orderSelect.innerHTML = `<option value="">Select Order</option>`;
         uniqueOrders.forEach(order => {
             const opt = document.createElement("option");
@@ -204,17 +202,14 @@
 
         orderSelect.addEventListener("change", updateOrderDetails);
         apnSelect.addEventListener("change", updateOrderDetails);
-    }
-
-    function updateOrderDetails() {
+    }    function updateOrderDetails() {
         const selectedOrder = document.getElementById("orderSelect").value;
-        const selectedAPN = document.getElementById("apnSelect").value;
-
+        const selectedAPN = document.getElementById("apnSelect").value;        
         const matched = allOrders.find(
-            o => o.orderNumber === selectedOrder && o.apnID === selectedAPN
+            o => o.orderNum === selectedOrder && o.apnID === selectedAPN
         );
 
-        document.getElementById("specDisplay").textContent = matched?.specification || "N/A";
+        document.getElementById("specDisplay").textContent = matched?.specification_name || "N/A";
         document.getElementById("plannedQtyDisplay").textContent = matched?.plannedQuantity || "N/A";
         document.getElementById("plannedspecsDisplay").textContent = matched?.specs || "N/A";
     }
@@ -239,9 +234,8 @@
         }
 
         // Initialize payload directions with 0
-        const directions = ['top', 'bot', 'left', 'right', 'front', 'back'];
-        let payload = {
-            orderNumber,
+        const directions = ['top', 'bot', 'left', 'right', 'front', 'back'];        let payload = {
+            orderNum: orderNumber,
             apnID
         };
 
@@ -253,9 +247,7 @@
         // Assign planned quantity to selected directions
         checkedBoxes.forEach(box => {
             payload[box.value] = plannedQty  ;
-        });
-
-        fetch(`/update_directions`, {
+        });        fetch(`${url}/update_directions`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
@@ -284,7 +276,7 @@
                 .join(' - ');
 
             const row = `<tr>
-                <td>${record.orderNumber}</td>
+                <td>${record.orderNum}</td>
                 <td>${record.apnID}</td>
                 <td>${record.specs}</td>
                 <td>${record.specification}</td>

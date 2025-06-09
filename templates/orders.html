@@ -45,14 +45,14 @@
 
         <div class="table-wrapper">
             <table id="ordersTable">
-                <thead>
-                    <tr>
+                <thead>                    <tr>
                         <th>Order Number</th>
                         <th>APN-ID</th>
                         <th>Spec</th>
                         <th>Specification</th>
                         <th>Planned Quantity</th>
                         <th>Created Date</th>
+                        <th>Directions</th>
                     </tr>
                 </thead>
                 <tbody id="ordersTableBody"></tbody>
@@ -104,16 +104,23 @@
         fetch(`${url}/all_orders`)
             .then(res => res.json())            .then(response => {
                 const tbody = document.getElementById("ordersTableBody");
-                tbody.innerHTML = "";
+                tbody.innerHTML = "";                response.data.forEach(order => {
+                    const directions = [];
+                    if (order.top > 0) directions.push('Top');
+                    if (order.bot > 0) directions.push('Bottom');
+                    if (order.front > 0) directions.push('Front');
+                    if (order.back > 0) directions.push('Back');
+                    if (order.left > 0) directions.push('Left');
+                    if (order.right > 0) directions.push('Right');
 
-                response.data.forEach(order => {
                     const row = `<tr>
                         <td class="order-number" style="cursor:pointer; color: green; text-decoration: underline;">${order.orderNumber}</td>
                         <td class="apn-id" style="cursor:pointer; color: green; text-decoration: underline;">${order.apnID}</td>
                         <td class="Spec" style="cursor:pointer; color: green; text-decoration: underline;">${order.specs}</td>
-                        <td>${order.specification}</td>
+                        <td>${order.specification_name}</td>
                         <td>${order.plannedQuantity}</td>
                         <td>${order.createdDate}</td>
+                        <td>${directions.join(', ') || 'None'}</td>
                     </tr>`;
                     tbody.insertAdjacentHTML("beforeend", row);
                 });

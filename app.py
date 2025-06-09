@@ -1,12 +1,12 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, make_response
 from datetime import datetime, timedelta
-import mysql.connector
 from mysql.connector import Error
+from collections import defaultdict
+from flask_cors import CORS
 import hashlib
 import jwt
-from collections import defaultdict
 import time
-from flask_cors import CORS
+import mysql.connector
 
 app = Flask(__name__)
 # Configure CORS to allow credentials and specific origins
@@ -215,31 +215,34 @@ def all_orders():
         return jsonify({"error": "Database connection error"}), 500
 
     try:
-        # Read filter_production query parameter, default False if not provided
-        filter_production = request.args.get('filter_production', 'false').lower() == 'true'        # Base query with production filter for holders
+        cursor = conn.cursor(dictionary=True)
+        filter_specs = request.args.get('filter_specs', '').lower() == 'true'
+
         query = """
-            SELECT ol.orderNum, ol.apnID, ol.specs, s.name, ol.planned_quantity,
-                   ol.createdDate, ol.top, ol.bot, ol.front, ol.back,
-                   ol.left, ol.right
+            SELECT ol.orderNum, ol.apnID, ol.specs, ol.specification,
+                   ol.planned_quantity, ol.createdDate, ol.top, ol.bot,
+                   ol.front, ol.back, ol.left, ol.right,
+                   s.name as specification_name
             FROM orders_library ol
-            JOIN specifications s ON ol.specification = s.id
-            WHERE s.name NOT IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')
+            LEFT JOIN specifications s ON ol.specification = s.id
         """
-
-        with conn.cursor() as cursor:
-            cursor.execute(query)
-            results = cursor.fetchall()
-
-        data_list = []
+        # Add filter if needed
+        if filter_specs:
+            query += " WHERE s.name NOT IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')"
+        
+        cursor = conn.cursor()
+        cursor.execute(query)
+        results = cursor.fetchall()
+        orders = []
         for row in results:
-            (orderNum, apnID, specs, specName, plannedQty, createdDate,
-             top, bot, front, back, left, right) = row
-            
-            data_list.append({
-                "orderNumber": orderNum,
+            (orderNum, apnID, specs, specification, plannedQty, createdDate,
+             top, bot, front, back, left, right, specification_name) = row
+            orders.append({
+                "orderNum": orderNum,
                 "apnID": apnID,
                 "specs": specs,
-                "specification": specName,
+                "specification_id": specification,
+                "specification_name": specification_name,
                 "plannedQuantity": plannedQty,
                 "createdDate": createdDate.strftime("%Y-%m-%d %H:%M:%S") if hasattr(createdDate, "strftime") else str(createdDate),
                 "top": top,
@@ -250,13 +253,14 @@ def all_orders():
                 "right": right
             })
 
-        return jsonify({"data": data_list})
+        return jsonify({"data": orders})
 
     except Exception as e:
+        print("Error:", e)  # Log the error for debugging
         return jsonify({"error": str(e)}), 500
-
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
 @app.route('/production_history', methods=['GET'])
 def production_history():
@@ -436,8 +440,8 @@ def update_directions():
         data = request.get_json()
         if not data:
             return jsonify({"error": "No JSON data provided"}), 400
-
-        order_num = data.get('orderNumber')
+            
+        order_num = data.get('orderNum')
         apn_id = data.get('apnID')
 
         if not order_num or not apn_id:
@@ -500,7 +504,6 @@ def update_directions():
         return jsonify({"message": "Directions updated successfully"})
 
     except Exception as e:
-        import traceback
         traceback.print_exc()  # Logs the full error to terminal
         if conn:
             try:
@@ -572,36 +575,49 @@ def get_orders():
         return jsonify({"error": "Database connection error"}), 500
     
     try:
-        # Read filter_production query parameter, default False if not provided
-        filter_production = request.args.get('filter_production', 'false').lower() == 'true'
-
-        # Base query with JOIN to specifications table
-        query = """            SELECT ol.orderNum, ol.apnID, ol.specification, s.name as spec_name, 
-                   ol.specs, ol.planned_quantity
+        # Read filter_specs query parameter, default False if not provided
+        filter_specs = request.args.get('filter_specs', 'false').lower() == 'true'        # Base query with JOIN to specifications table
+        query = """
+            SELECT ol.orderNum, ol.apnID, ol.specs, ol.specification,
+                   ol.planned_quantity, ol.createdDate, ol.top, ol.bot,
+                   ol.front, ol.back, ol.left, ol.right,
+                   s.name as specification_name
             FROM orders_library ol
-            JOIN specifications s ON ol.specification = s.id
-            WHERE s.name NOT IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')
+            LEFT JOIN specifications s ON ol.specification = s.id
         """
+        # Add filter if needed
+        if filter_specs:
+            query += " WHERE s.name NOT IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')"
         
-        with conn.cursor() as cursor:
-            cursor.execute(query)
-            results = cursor.fetchall()
-            
+        cursor = conn.cursor()
+        cursor.execute(query)
+        results = cursor.fetchall()
         orders = []
         for row in results:
+            (orderNum, apnID, specs, specification, plannedQty, createdDate,
+             top, bot, front, back, left, right, specification_name) = row
             orders.append({
-                "orderNum": row[0],  # Changed to match what frontend expects
-                "apnID": row[1],
-                "specification": row[3],  # Using the name from specifications table
-                "specs": row[4],
-                "plannedQuantity": row[5]
+                "orderNum": orderNum,
+                "apnID": apnID,
+                "specs": specs,
+                "specification_name": specification_name,
+                "specification_id": specification,
+                "plannedQuantity": plannedQty,
+                "createdDate": createdDate.strftime("%Y-%m-%d %H:%M:%S") if hasattr(createdDate, "strftime") else str(createdDate),
+                "top": top,
+                "bot": bot,
+                "front": front,
+                "back": back,
+                "left": left,
+                "right": right
             })
 
-        return jsonify({"data": orders})  # Changed 'orders' to 'data' to match frontend expectation
+        return jsonify({"data": orders})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
 @app.route('/admin')
 def admin():
@@ -960,6 +976,116 @@ def assembly_monitoring_data():
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
+
+@app.route('/assembly_history', methods=['GET'])
+def assembly_history():
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database connection error"}), 500
+
+    try:
+        query = """
+            SELECT 
+                a.orderNumber, 
+                a.apnID, 
+                a.specification,
+                ol.specs,
+                a.quantity as quantityAssembled,
+                a.created_date as dateTime,
+                a.user_name
+            FROM assembly a
+            LEFT JOIN orders_library ol ON a.orderNumber = ol.orderNum AND a.apnID = ol.apnID
+            ORDER BY a.created_date DESC
+        """
+        
+        with conn.cursor() as cursor:
+            cursor.execute(query)
+            results = cursor.fetchall()
+            
+        data_list = []
+        for row in results:
+            (orderNumber, apnID, specification, specs, quantityAssembled, dateTime, user_name) = row
+            data_list.append({
+                "orderNumber": orderNumber,
+                "apnID": apnID,
+                "specification": specification,
+                "specs": specs,
+                "quantityAssembled": quantityAssembled,
+                "dateTime": dateTime.strftime("%Y-%m-%d %H:%M:%S") if hasattr(dateTime, "strftime") else str(dateTime),
+                "user_name": user_name
+            })
+
+        return jsonify({"data": data_list})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/submit_assembly', methods=['POST'])
+def submit_assembly():
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database connection error"}), 500
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        # Get user info from token
+        token = request.cookies.get('token')
+        if not token:
+            return jsonify({"error": "Authentication required"}), 401
+        
+        user_data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+        username = user_data.get('FirstName', 'Unknown')        # Prepare and validate data for insertion
+        order_number = data.get('orderNumber')
+        apn_id = data.get('apnID')
+        specification = data.get('specification')
+        quantity = data.get('quantity')
+        
+        # Validate quantity is a positive number
+        try:
+            quantity = int(quantity)
+            if quantity <= 0:
+                return jsonify({"error": "Quantity must be greater than 0"}), 400
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid quantity value"}), 400
+            
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        if not all([order_number, apn_id, specification, quantity]):
+            return jsonify({"error": "Missing required fields"}), 400
+
+        # Insert assembly record
+        query = """
+            INSERT INTO assembly 
+            (orderNumber, apnID, specification, quantity, user_name, created_date)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        with conn.cursor() as cursor:
+            cursor.execute(query, (
+                order_number,
+                apn_id,
+                specification,
+                quantity,
+                username,
+                timestamp
+            ))
+            conn.commit()
+
+        return jsonify({"message": "Assembly submitted successfully"})
+
+    except Exception as e:
+        print("Error:", e)  # Log the error
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/assembly')
+def assembly():
+    return render_template('assembly.html')
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5600, debug=True)
 

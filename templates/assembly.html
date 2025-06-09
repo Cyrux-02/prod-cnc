@@ -136,12 +136,17 @@
         // Load orders when page loads
         loadOrders();
 
-        // Function to load orders
-        async function loadOrders() {
+        // Function to load orders        async function loadOrders() {
             try {
                 const response = await fetch(`${url}/all_orders`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
                 const data = await response.json();
-                const uniqueOrders = [...new Set(data.data.map(order => order.orderNumber))];
+                if (!data.data || !Array.isArray(data.data)) {
+                    throw new Error('Invalid response format: data.data should be an array');
+                }
+                const uniqueOrders = [...new Set(data.data.map(order => order.orderNum))];
                 orderSelect.innerHTML = '<option value="">Select Order</option>';
                 uniqueOrders.forEach(order => {
                     const option = document.createElement('option');
@@ -166,7 +171,7 @@
                     const response = await fetch(`${url}/all_orders`);
                     const data = await response.json();
                     
-                    const orderData = data.data.filter(order => order.orderNumber === selectedOrder);
+                    const orderData = data.data.filter(order => order.orderNum === selectedOrder);
                     const uniqueAPNs = [...new Set(orderData.map(order => order.apnID))];
                     
                     uniqueAPNs.forEach(apn => {
@@ -189,15 +194,13 @@
             if (selectedOrder && selectedAPN) {
                 try {
                     const response = await fetch(`${url}/all_orders`);
-                    const data = await response.json();
-                    
-                    orderData = data.data.find(order => 
-                        order.orderNumber === selectedOrder && order.apnID === selectedAPN
+                    const data = await response.json();                      orderData = data.data.find(order => 
+                        order.orderNum === selectedOrder && order.apnID === selectedAPN
                     );
                     
                     if (orderData) {
                         // Update specification display
-                        document.getElementById('specificationDisplay').textContent = orderData.specification || "N/A";
+                        document.getElementById('specificationDisplay').textContent = orderData.specification_name || "N/A";
                         document.getElementById('plannedQtyDisplay').textContent = orderData.plannedQuantity || "N/A";
                         document.getElementById('specDisplay').textContent = orderData.specs || "N/A";
                     }
@@ -230,9 +233,14 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    credentials: 'include',
-                    body: JSON.stringify(assemblyData)
-                });                const result = await response.json();                if (response.ok) {
+                    credentials: 'include',                    body: JSON.stringify(assemblyData)
+                });
+                if (!response.ok) {
+                    const result = await response.json();
+                    throw new Error(result.error || 'Failed to submit assembly');
+                }
+                const result = await response.json();
+                if (response.ok) {
                     alert('Assembly submitted successfully!');
                     
                     // Send data to assembly_monitoring.html
