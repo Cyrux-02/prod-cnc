@@ -983,6 +983,9 @@ def assembly_monitoring_data():
         conn.close()
         
         
+from flask import jsonify
+from datetime import datetime
+
 @app.route('/assembly_chart_data')
 def assembly_chart_data():
     conn = get_db_connection()
@@ -992,22 +995,21 @@ def assembly_chart_data():
     try:
         cursor = conn.cursor(dictionary=True)
         
-        # Query to get daily production quantities for in-progress orders
         query = """
             SELECT 
                 DATE(p.createdDate) as date,
-                p.order,
+                p.`order`,
                 ol.planned_quantity,
                 SUM(p.quantity) as daily_quantity,
                 ol.specification
             FROM production p
-            JOIN orders_library ol ON p.order = ol.orderNum AND p.apn = ol.apnID
+            JOIN orders_library ol ON p.`order` = ol.orderNum AND p.apn = ol.apnID
             WHERE ol.planned_quantity > (
                 SELECT COALESCE(SUM(quantity), 0)
                 FROM production p2
-                WHERE p2.order = ol.orderNum AND p2.apn = ol.apnID
+                WHERE p2.`order` = ol.orderNum AND p2.apn = ol.apnID
             )
-            GROUP BY DATE(p.createdDate), p.order, ol.planned_quantity, ol.specification
+            GROUP BY DATE(p.createdDate), p.`order`, ol.planned_quantity, ol.specification
             ORDER BY date DESC
             LIMIT 30
         """
@@ -1020,10 +1022,11 @@ def assembly_chart_data():
             'datasets': [],
             'orders': {}
         }
-        
-        # Process the results
+
         for row in results:
-            date_str = row['date'].strftime('%Y-%m-%d')
+            date_value = row['date']
+            date_str = date_value.strftime('%Y-%m-%d') if hasattr(date_value, 'strftime') else str(date_value)
+            
             if date_str not in chart_data['labels']:
                 chart_data['labels'].append(date_str)
             
@@ -1040,7 +1043,6 @@ def assembly_chart_data():
                 'y': row['daily_quantity']
             })
         
-        # Convert orders dict to datasets array
         for order_id, order_data in chart_data['orders'].items():
             chart_data['datasets'].append({
                 'label': order_data['label'],
