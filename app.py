@@ -997,21 +997,22 @@ def assembly_chart_data():
         
         query = """
             SELECT 
-                DATE(p.createdDate) as date,
-                p.`order`,
+                DATE(a.created_date) as date,
+                a.apn,
                 ol.planned_quantity,
-                SUM(p.quantity) as daily_quantity,
-                ol.specification
-            FROM production p
-            JOIN orders_library ol ON p.`order` = ol.orderNum AND p.apn = ol.apnID
-            WHERE ol.planned_quantity > (
-                SELECT COALESCE(SUM(quantity), 0)
-                FROM production p2
-                WHERE p2.`order` = ol.orderNum AND p2.apn = ol.apnID
-            )
-            GROUP BY DATE(p.createdDate), p.`order`, ol.planned_quantity, ol.specification
-            ORDER BY date DESC
-            LIMIT 30
+                SUM(a.quantity_assembled) as daily_quantity,
+                s.`name` as specification
+            FROM assembly a, orders_library ol
+            JOIN specifications s ON s.id = ol.specification
+            WHERE ol.planned_quantity < (
+                SELECT COALESCE(SUM(quantity_assembled), 0)
+                FROM assembly a2
+                WHERE a2.`order` = ol.orderNum AND a2.apn = ol.apnID
+                group by apn, `order`
+
+            ) AND a.`order` = ol.orderNum AND a.apn = ol.apnID
+            GROUP BY DATE(a.created_date), a.apn, ol.planned_quantity, ol.specification
+            ORDER BY date ASC
         """
         
         cursor.execute(query)
@@ -1030,10 +1031,10 @@ def assembly_chart_data():
             if date_str not in chart_data['labels']:
                 chart_data['labels'].append(date_str)
             
-            order_id = row['order']
+            order_id = row['apn']
             if order_id not in chart_data['orders']:
                 chart_data['orders'][order_id] = {
-                    'label': f"Order {order_id} ({row['specification']})",
+                    'label': f"APN {order_id} ({row['specification']})",
                     'data': [],
                     'planned_quantity': row['planned_quantity']
                 }
