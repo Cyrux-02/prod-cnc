@@ -229,7 +229,9 @@ def all_orders():
         # Add filter if needed
         if filter_specs:
             query += " WHERE s.name NOT IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')"
-        
+        else :
+            query += " WHERE s.name IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')"
+            
         cursor = conn.cursor()
         cursor.execute(query)
         results = cursor.fetchall()
@@ -575,8 +577,7 @@ def get_orders():
         return jsonify({"error": "Database connection error"}), 500
     
     try:
-        # Read filter_specs query parameter, default False if not provided
-        filter_specs = request.args.get('filter_specs', 'false').lower() == 'true'        # Base query with JOIN to specifications table
+        
         query = """
             SELECT ol.orderNum, ol.apnID, ol.specs, ol.specification,
                    ol.planned_quantity, ol.createdDate, ol.top, ol.bot,
@@ -584,11 +585,8 @@ def get_orders():
                    s.name as specification_name
             FROM orders_library ol
             LEFT JOIN specifications s ON ol.specification = s.id
+            WHERE s.name NOT IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')
         """
-        # Add filter if needed
-        if filter_specs:
-            query += " WHERE s.name NOT IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')"
-        
         cursor = conn.cursor()
         cursor.execute(query)
         results = cursor.fetchall()

@@ -194,7 +194,7 @@
             
             if (selectedOrder) {
                 try {
-                    const response = await fetch(`${url}/all_orders`);
+                    const response = await fetch(`${url}/all_orders?filter_specs=true`);
                     const data = await response.json();
                       const orderData = data.data.filter(order => order.orderNum === selectedOrder);
                     const uniqueAPNs = [...new Set(orderData.map(order => order.apnID))];
