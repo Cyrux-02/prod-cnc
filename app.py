@@ -114,7 +114,9 @@ def monitoring():
                 ol.right
             FROM orders_library ol
             LEFT JOIN specifications s ON ol.specification = s.id
+            WHERE s.name NOT IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')
         """
+        
         cursor.execute(query)
         results = cursor.fetchall()
         orders = []
@@ -950,6 +952,8 @@ def assembly_monitoring_data():
         return jsonify({"error": "Database connection error"}), 500
 
     try:
+        cursor = conn.cursor(dictionary=True)
+        
         query = """
             SELECT 
                 ol.orderNum AS `order`,
@@ -961,6 +965,7 @@ def assembly_monitoring_data():
                 ol.planned_quantity - COALESCE(SUM(a.quantity_assembled), 0) AS remaining_quantity
             FROM orders_library ol
             LEFT JOIN assembly a ON ol.orderNum = a.`order` AND ol.apnID = a.apn
+            WHERE s.name IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')
             GROUP BY 
                 ol.orderNum, 
                 ol.apnID, 
