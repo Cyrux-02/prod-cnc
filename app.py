@@ -228,9 +228,9 @@ def all_orders():
         """
         # Add filter if needed
         if filter_specs:
-            query += " WHERE s.name NOT IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')"
-        else :
             query += " WHERE s.name IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')"
+        else :
+            query += " WHERE s.name  NOT IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')"
             
         cursor = conn.cursor()
         cursor.execute(query)
@@ -622,7 +622,7 @@ def admin():
     return render_template('admin.html')
 
 @app.route('/admin/users', methods=['GET'])
-# @requires_auth
+@requires_auth
 def get_users():
     conn = get_db_connection()
     if not conn:
@@ -650,7 +650,7 @@ def get_users():
         conn.close()
 
 @app.route('/admin/users', methods=['POST'])
-# @requires_auth
+@requires_auth
 def create_user():
     conn = get_db_connection()
     if not conn:
