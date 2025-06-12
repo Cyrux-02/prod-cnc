@@ -966,7 +966,8 @@ def assembly_monitoring_data():
                 ol.planned_quantity - COALESCE(SUM(a.quantity_assembled), 0) AS remaining_quantity
             FROM orders_library ol
             LEFT JOIN assembly a ON ol.orderNum = a.`order` AND ol.apnID = a.apn
-            WHERE s.name IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')
+            LEFT JOIN specifications s ON ol.specification = s.id
+            WHERE s.name  IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')
             GROUP BY 
                 ol.orderNum, 
                 ol.apnID, 
@@ -978,6 +979,7 @@ def assembly_monitoring_data():
         with conn.cursor(dictionary=True) as cursor:
             cursor.execute(query)
             orders = cursor.fetchall()
+            print("Fetched orders:", orders)
             return jsonify({"orders": orders})
 
     except Exception as e:
