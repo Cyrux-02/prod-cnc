@@ -153,7 +153,7 @@ def add_order_to_library():
 
     try:
         data = request.get_json()
-        order_number = data["orderNumber"]
+        order_number = data["orderNum"]
         apn_id = data["apnID"]
         Spec = data["specs"]
         specification = data["specification"]
@@ -217,8 +217,9 @@ def all_orders():
         return jsonify({"error": "Database connection error"}), 500
 
     try:
-        cursor = conn.cursor(dictionary=True)
-        filter_specs = request.args.get('filter_specs', '').lower() == 'true'
+        # Read filter_specs query parameter, default False if not provided
+        filter_specs = request.args.get('filter_specs', 'false').lower() == 'true'        # Base query with JOIN to specifications table
+
 
         query = """
             SELECT ol.orderNum, ol.apnID, ol.specs, ol.specification,
@@ -230,9 +231,9 @@ def all_orders():
         """
         # Add filter if needed
         if filter_specs:
-            query += " WHERE s.name IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')"
+            query += " WHERE s.name NOT IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')"
         else :
-            query += " WHERE s.name  NOT IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')"
+            query += " WHERE s.name   IN ('Electrified Holder', 'Mechanical Holder', 'Wifi Holder')"
             
         cursor = conn.cursor()
         cursor.execute(query)

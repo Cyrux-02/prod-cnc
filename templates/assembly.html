@@ -156,7 +156,7 @@
             if (!selectedOrder) return;
 
             try {
-                const response = await fetch(`${url}/all_orders`);
+                const response = await fetch(`${url}/all_orders?filter_specs=false`);
                 const data = await response.json();
 
                 const filteredOrders = data.data.filter(order => order.orderNum === selectedOrder);

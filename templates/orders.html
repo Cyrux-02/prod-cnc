@@ -12,8 +12,8 @@
         <div class="order-form">
             <form id="orderForm">
                 <div class="form-group">
-                    <label for="orderNumber">Order Number:</label>
-                    <input type="text" id="orderNumber" required>
+                    <label for="orderNum">Order Number:</label>
+                    <input type="text" id="orderNum" required>
 
                     <label for="apnID">APN-ID:</label>
                     <input type="text" id="apnID" required>                    <label for="specs">Spec:</label>
@@ -26,9 +26,10 @@
                         <option value="2">Stop Tapping</option>
                         <option value="3">Strain Relief</option>
                         <option value="4">Codding </option>
-                        <option value="5">Electrified Holder </option>
-                        <option value="6">Mechanical Holder </option>
-                        <option value="7">Wifi Holder </option>
+                        <option value="5">POM Part</option>
+                        <option value="6">Electrified Holder </option>
+                        <option value="7">Mechanical Holder </option>
+                        <option value="8">Wifi Holder </option>
                     </select>
 
                     <label for="plannedQuantity">Planned Quantity:</label>
@@ -71,14 +72,14 @@
 
     function submitOrder() {
         const data = {
-            orderNumber: document.getElementById("orderNumber").value,
+            orderNum: document.getElementById("orderNum").value,
             apnID: document.getElementById("apnID").value,
             specs: document.getElementById("specs").value,
             specification: document.getElementById("specification").value,
             plannedQuantity: document.getElementById("plannedQuantity").value,
         };
 
-        if (!data.orderNumber || !data.apnID ||!data.specs || !data.specification || !data.plannedQuantity) {
+        if (!data.orderNum || !data.apnID ||!data.specs || !data.specification || !data.plannedQuantity) {
             alert("Please fill in all required fields");
             return;
         }
@@ -114,7 +115,7 @@
                     if (order.right > 0) directions.push('Right');
 
                     const row = `<tr>
-                        <td class="order-number" style="cursor:pointer; color: green; text-decoration: underline;">${order.orderNumber}</td>
+                        <td class="Order Number" style="cursor:pointer; color: green; text-decoration: underline;">${order.orderNum}</td>
                         <td class="apn-id" style="cursor:pointer; color: green; text-decoration: underline;">${order.apnID}</td>
                         <td class="Spec" style="cursor:pointer; color: green; text-decoration: underline;">${order.specs}</td>
                         <td>${order.specification_name}</td>
@@ -126,7 +127,7 @@
                 });
 
                 // Attach click event for order number filtering
-                document.querySelectorAll("#ordersTableBody .order-number").forEach(cell => {
+                document.querySelectorAll("#ordersTableBody .Order Number").forEach(cell => {
                     cell.addEventListener("click", () => {
                         filterByOrder(cell.textContent);
                     });
@@ -198,12 +199,12 @@
 
     function showSpecDetails(cell) {
         const row = cell.parentElement;
-        const orderNumber = row.cells[0].textContent;
+        const orderNum = row.cells[0].textContent;
         const apnId = row.cells[1].textContent;
         const plannedQty = row.cells[4].textContent;
         const createdDate = row.cells[5].textContent;
 
-        alert(`Spec: ${cell.textContent}\nOrder Number: ${orderNumber}\nAPN-ID: ${apnId}\nPlanned Quantity: ${plannedQty}\nCreated Date: ${createdDate}`);
+        alert(`Spec: ${cell.textContent}\nOrder Number: ${orderNum}\nAPN-ID: ${apnId}\nPlanned Quantity: ${plannedQty}\nCreated Date: ${createdDate}`);
     }
 
 </script>
