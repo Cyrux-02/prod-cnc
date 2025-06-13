@@ -140,7 +140,7 @@
                 </div>
             </div>            <div class="filter-actions">
                 <button onclick="fetchFilteredHistory()">Apply Filter</button>
-                <button onclick="fetchdata()" class="secondary-btn">Show All History</button>
+                <button type="submit" class="secondary-btn">Show All History</button>
             </div>
         </div>
     </div>
@@ -165,54 +165,99 @@
 {% block scripts %}
 <script>
     let history = [];
-    let allOrders = [];      function fetchdata() {
-        fetch(`/all_orders`)
+    let allOrders = [];  
+    function fetchdata() {
+        fetch(`/all_orders?filter_specs=true`)
             .then(res => res.json())
             .then(data => {
                 console.log('Received data:', data.data);
                 history = data.data;
                 allOrders = data.data;
                 displayHistory();
-                populateDropdowns(data.data);
             })
             .catch(console.error);
     }
+    function resetDetails() {
+            document.getElementById('plannedspecsDisplay').textContent = 'N/A';
+            document.getElementById('plannedQtyDisplay').textContent = 'N/A';
+            document.getElementById('specDisplay').textContent = 'N/A';
+        }    
+    async function loadOrders() {
+        try {
+            const response = await fetch(`${url}/all_orders`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-    function populateDropdowns(data) {
-        const orderSelect = document.getElementById("orderSelect");
-        const apnSelect = document.getElementById("apnSelect");        // Populate order dropdown
-        const uniqueOrders = [...new Set(data.map(item => item.orderNum))];
-        orderSelect.innerHTML = `<option value="">Select Order</option>`;
-        uniqueOrders.forEach(order => {
-            const opt = document.createElement("option");
-            opt.value = order;
-            opt.textContent = order;
-            orderSelect.appendChild(opt);
+                const data = await response.json();
+                if (!data.data || !Array.isArray(data.data)) throw new Error('Invalid data format');
+
+                const uniqueOrders = [...new Set(data.data.map(order => order.orderNum))];
+                orderSelect.innerHTML = '<option value="">Select Order</option>';
+                uniqueOrders.forEach(orderNum => {
+                    const option = document.createElement('option');
+                    option.value = orderNum;
+                    option.textContent = orderNum;
+                    orderSelect.appendChild(option);
+                    });
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                }
+            }
+    // Load APN IDs when an order is selected
+    orderSelect.addEventListener('change', async function () {
+        const selectedOrder = this.value;
+        apnSelect.disabled = !selectedOrder;
+        apnSelect.innerHTML = '<option value="">Select APN ID</option>';
+        resetDetails();
+
+        if (!selectedOrder) return;
+
+        try {
+            const response = await fetch(`${url}/all_orders?filter_specs=true`);
+            const data = await response.json();
+
+            const filteredOrders = data.data.filter(order => order.orderNum === selectedOrder);
+            const uniqueAPNs = [...new Set(filteredOrders.map(order => order.apnID))];
+
+            uniqueAPNs.forEach(apn => {
+                const option = document.createElement('option');
+                option.value = apn;
+                option.textContent = apn;
+                apnSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error loading APNs:', error);
+        }
+    });
+
+    // Show order details when APN is selected
+        apnSelect.addEventListener('change', async function () {
+            const selectedOrder = orderSelect.value;
+            const selectedAPN = this.value;
+
+            if (!selectedOrder || !selectedAPN) {
+                resetDetails();
+                return;
+            }
+
+            try {
+                const response = await fetch(`${url}/all_orders?filter_specs=true`);
+                const data = await response.json();
+
+                currentOrderData = data.data.find(order => order.orderNum === selectedOrder && order.apnID === selectedAPN);
+
+                if (currentOrderData) {
+                    document.getElementById('plannedspecsDisplay').textContent = currentOrderData.specification_name || 'N/A';
+                    document.getElementById('plannedQtyDisplay').textContent = currentOrderData.plannedQuantity || 'N/A';
+                    document.getElementById('specDisplay').textContent = currentOrderData.specs || 'N/A';
+                } else {
+                    resetDetails();
+                }
+            } catch (error) {
+                console.error('Error loading specifications:', error);
+                resetDetails();
+            }
         });
 
-        // Populate APN dropdown
-        const uniqueAPNs = [...new Set(data.map(item => item.apnID))];
-        apnSelect.innerHTML = `<option value="">Select APN-ID</option>`;
-        uniqueAPNs.forEach(apn => {
-            const opt = document.createElement("option");
-            opt.value = apn;
-            opt.textContent = apn;
-            apnSelect.appendChild(opt);
-        });
-
-        orderSelect.addEventListener("change", updateOrderDetails);
-        apnSelect.addEventListener("change", updateOrderDetails);
-    }    function updateOrderDetails() {
-        const selectedOrder = document.getElementById("orderSelect").value;
-        const selectedAPN = document.getElementById("apnSelect").value;        
-        const matched = allOrders.find(
-            o => o.orderNum === selectedOrder && o.apnID === selectedAPN
-        );
-
-        document.getElementById("specDisplay").textContent = matched?.specification_name || "N/A";
-        document.getElementById("plannedQtyDisplay").textContent = matched?.plannedQuantity || "N/A";
-        document.getElementById("plannedspecsDisplay").textContent = matched?.specs || "N/A";
-    }
 
     function updateDirections() {
         const orderNumber = document.getElementById("orderSelect").value;
@@ -279,7 +324,7 @@
                 <td>${record.orderNum}</td>
                 <td>${record.apnID}</td>
                 <td>${record.specs}</td>
-                <td>${record.specification}</td>
+                <td>${record.specification_name}</td>
                 <td>${record.plannedQuantity}</td>
                 <td>${record.createdDate}</td>
                 <td>${selectedDirections || 'None'}</td>
@@ -303,12 +348,14 @@
     }
 
     document.addEventListener('DOMContentLoaded', function() {
+        
+        loadOrders();
         fetchdata();
-
         // Added this to fix submit button
         document.getElementById("specForm").addEventListener("submit", function(event) {
             event.preventDefault();
             updateDirections();
+            fetchdata()
         });
     });
 </script>

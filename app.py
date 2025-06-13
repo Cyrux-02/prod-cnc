@@ -1078,15 +1078,16 @@ def assembly_history():
     try:
         query = """
             SELECT 
-                a.`order`, 
+                distinct (`order`),
                 a.apn, 
                 a.specification,
                 ol.specs,
                 a.quantity_assembled as quantityAssembled,
                 a.created_date as dateTime,
-                a.user_firstname
+                UserName
             FROM assembly a
-            LEFT JOIN orders_library ol ON a.`order` = ol.orderNum AND a.apn = ol.apnID
+            INNER JOIN orders_library ol ON a.`order` = ol.orderNum AND a.apn = ol.apnID
+            LEFT JOIN users u ON a.user_id = u.ID
             ORDER BY a.created_date DESC
         """
 
@@ -1096,7 +1097,7 @@ def assembly_history():
 
         data_list = []
         for row in results:
-            (orderNumber, apnID, specification, specs, quantityAssembled, dateTime, user_firstname) = row
+            (orderNumber, apnID, specification, specs, quantityAssembled, dateTime, username) = row
             data_list.append({
                 "orderNumber": orderNumber,
                 "apnID": apnID,
@@ -1104,7 +1105,7 @@ def assembly_history():
                 "specs": specs,
                 "quantityAssembled": quantityAssembled,
                 "dateTime": dateTime.strftime("%Y-%m-%d %H:%M:%S") if hasattr(dateTime, "strftime") else str(dateTime),
-                "user_name": user_firstname
+                "user_name": username
             })
 
         return jsonify({"data": data_list})
@@ -1132,7 +1133,7 @@ def submit_assembly():
             return jsonify({"error": "Authentication required"}), 401
 
         user_data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
-        username = user_data.get('FirstName', 'Unknown')
+        userid = user_data.get('user_id', 'Unknown')
 
         # Extract fields from frontend JSON (which uses camelCase keys)
         order_number = data.get('orderNumber')  # frontend sends "orderNumber"
@@ -1157,7 +1158,7 @@ def submit_assembly():
         # ✅ Use correct SQL column names — especially `order` (not `orderNumber`)
         query = """
             INSERT INTO assembly 
-            (`order`, apn, specification, quantity_assembled, user_firstname, created_date)
+            (`order`, apn, specification, quantity_assembled, user_id, created_date)
             VALUES (%s, %s, %s, %s, %s, %s)
         """
         with conn.cursor() as cursor:
@@ -1166,7 +1167,7 @@ def submit_assembly():
                 apn_id,              # maps to SQL `apn`
                 specification,       # maps to SQL `specification`
                 quantity,            # maps to SQL `quantity_assembled`
-                username,            # maps to SQL `user_firstname`
+               userid,            # maps to SQL `user_firstname`
                 timestamp            # maps to SQL `created_date`
             ))
             conn.commit()
@@ -1178,6 +1179,41 @@ def submit_assembly():
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
+        
+        
+@app.route('/all_specifications', methods=['GET'])
+def all_specifications():
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database connection error"}), 500
+
+    try:
+
+        query = """
+            SELECT  id, name
+            FROM specifications 
+        """
+
+        cursor = conn.cursor()
+        cursor.execute(query)
+        results = cursor.fetchall()
+        specifications = []
+        for row in results:
+    
+            (id, name) = row
+            specifications.append({
+                "id": id,
+                "name": name
+            })
+
+        return jsonify({"data": specifications})
+    except Exception as e:
+        print("Error:", e)  # Log the error for debugging
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
 
 
 @app.route('/assembly')
