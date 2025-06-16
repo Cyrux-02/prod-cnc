@@ -151,10 +151,11 @@
     let productionChart = null;
 
     document.addEventListener('DOMContentLoaded', function() {
+        loadAssemblyData();
         loadChartData();
-        setInterval(() => {
-            loadChartData();
-        }, 5000); // Refresh every 5 seconds
+        //setInterval(() => {
+           // loadChartData();
+       // }, 5000); // Refresh every 5 seconds
 
         document.getElementById('chartViewType').addEventListener('change', loadChartData);
     });
