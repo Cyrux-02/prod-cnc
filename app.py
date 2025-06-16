@@ -38,12 +38,14 @@ def get_db_connection():
 # User authentication decorator
 def requires_auth(f):
     def decorated(*args, **kwargs):
-        auth_header = request.headers.get('Authorization')
-        if not auth_header:
+        # auth_header = request.headers.get('Authorization')
+        token = request.headers.get('Cookie')[6:]
+        
+        if not token:
             return jsonify({'message': 'No authorization header'}), 401
         
         try:
-            token = auth_header.split(' ')[1]
+            # token = auth_header.split(' ')[1]
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
             return f(*args, **kwargs)
         except Exception as e:
@@ -1002,7 +1004,7 @@ def assembly_chart_data():
         cursor = conn.cursor(dictionary=True)
         
         query = """
-            SELECT 
+SELECT 
                 DATE(a.created_date) as date,
                 a.apn,
                 ol.planned_quantity,
@@ -1010,13 +1012,7 @@ def assembly_chart_data():
                 s.`name` as specification
             FROM assembly a, orders_library ol
             JOIN specifications s ON s.id = ol.specification
-            WHERE ol.planned_quantity < (
-                SELECT COALESCE(SUM(quantity_assembled), 0)
-                FROM assembly a2
-                WHERE a2.`order` = ol.orderNum AND a2.apn = ol.apnID
-                group by apn, `order`
-
-            ) AND a.`order` = ol.orderNum AND a.apn = ol.apnID
+              where a.`order` = ol.orderNum AND a.apn = ol.apnID
             GROUP BY DATE(a.created_date), a.apn, ol.planned_quantity, ol.specification
             ORDER BY date ASC
         """

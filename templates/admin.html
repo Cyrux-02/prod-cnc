@@ -140,9 +140,11 @@
 
 {% block scripts %}
 <script>
+    let token = ""
     document.addEventListener('DOMContentLoaded', function() {
         loadUsers();
         setupUserForm();
+        token = document.cookie.split('; ').find(row => row.startsWith('token='));
     });
 
     function setupUserForm() {
@@ -169,7 +171,9 @@
 
         fetch(`${url}${endpoint}`, {
             method: method,
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json',
+        
+        },
             body: JSON.stringify(data)
         })
         .then(res => res.json())
@@ -279,12 +283,12 @@
     }
 
     function resetForm() {
-        //document.getElementById('userForm').reset();
-        //document.getElementById('userId').value = '';
-        //document.getElementById('submitBtn').textContent = 'Add User';
-        //document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-        //    checkbox.checked = false;
-        //});
+        document.getElementById('userForm').reset();
+        document.getElementById('userId').value = '';
+        document.getElementById('submitBtn').textContent = 'Add User';
+        document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.checked = false;
+        });
     }
 </script>
 {% endblock %}
