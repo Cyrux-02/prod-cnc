@@ -90,10 +90,17 @@
         background-color: rgba(26, 29, 33, 0.5);
     }
 
-    .completed {
+    .Completed {
         color: #4caf50;
         font-weight: bold;
     }
+    .In Progress{
+        color: #ffbf00;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-weight: 500;
+    }
+
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -261,7 +268,7 @@
             <td>${planned_quantity}</td>
             <td>${quantity_assembled}</td>
             <td>${remaining}</td>
-            <td class="${status === 'Completed' ? 'completed' : ''}">${status}</td>
+            <td class="${status === 'Completed' ? 'Completed' : ''}">${status}</td>
         `;
 
         // Insert new row at the top of the table
@@ -273,3 +280,4 @@
     }
 </script>
 {% endblock %}
+

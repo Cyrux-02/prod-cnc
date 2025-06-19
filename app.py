@@ -7,6 +7,9 @@ import hashlib
 import jwt
 import time
 import mysql.connector
+import os
+import pandas as pd
+import openpyxl
 
 app = Flask(__name__)
 # Configure CORS to allow credentials and specific origins
@@ -20,6 +23,8 @@ app.config['SERVER_PORT'] = 5400  # Server port number
 # Rate limiting storage
 login_attempts = defaultdict(list)  # Store login attempts with timestamps
 blocked_ips = defaultdict(float)  # Store blocked IPs with unblock time
+table_sheet_map = {"Orders_library":"Orders","production":"Production","assembly":"Assembly"}
+EXCEL_FILE = "./production.xlsx"
 
 def get_db_connection():
     try:
@@ -34,6 +39,47 @@ def get_db_connection():
     except Error as e:
         print("Error connecting to MySQL:", e)
         return None
+
+def update_excel():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    if not os.path.exists(EXCEL_FILE):
+        with pd.ExcelWriter(EXCEL_FILE, engine="openpyxl") as writer:
+            for table, sheet in table_sheet_map.items():
+                cursor.execute(f"SELECT * FROM {table}")
+                rows = cursor.fetchall()
+                df = pd.DataFrame(rows)
+                df.to_excel(writer, sheet_name=sheet, index=False)
+        print(" Excel file created.")
+    else:
+        book = openpyxl.load_workbook(EXCEL_FILE)
+        writer = pd.ExcelWriter(EXCEL_FILE, engine="openpyxl", mode="a", if_sheet_exists="overlay")
+        writer.book = book
+
+        for table, sheet in table_sheet_map.items():
+            if sheet in book.sheetnames:
+                existing_df = pd.read_excel(EXCEL_FILE, sheet_name=sheet)
+                last_id = existing_df["id"].max() if "id" in existing_df.columns else 0
+            else:
+                existing_df = pd.DataFrame()
+                last_id = 0
+
+            cursor.execute(f"SELECT * FROM {table} WHERE id > %s", (last_id,))
+            new_rows = cursor.fetchall()
+            new_df = pd.DataFrame(new_rows)
+
+            if not new_df.empty:
+                combined_df = pd.concat([existing_df, new_df], ignore_index=True)
+                combined_df.to_excel(writer, sheet_name=sheet, index=False)
+                print(f" Sheet '{sheet}' updated with {len(new_df)} new rows.")
+            else:
+                print(f"ℹ No new data for sheet '{sheet}'.")
+
+        writer.close()
+
+    cursor.close()
+    conn.close()
+
 
 # User authentication decorator
 def requires_auth(f):
@@ -205,11 +251,11 @@ def add_order_to_library():
         with conn.cursor() as cursor:
             cursor.execute(query, values)
             conn.commit()
-
         return jsonify({"message": "Order added to library with direction quantity fully assigned."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
+        update_excel()
         conn.close()
 
 @app.route('/all_orders', methods=['GET'])
@@ -434,6 +480,7 @@ def submit_production():
         return jsonify({"error": str(e)}), 500
     
     finally:
+        update_excel()
         if conn:
             conn.close()       
 
@@ -520,6 +567,7 @@ def update_directions():
         return jsonify({"error": f"Server error: {str(e)}"}), 500
 
     finally:
+        update_excel()
         if conn:
             try:
                 conn.close()
@@ -684,18 +732,35 @@ def create_user():
         # Insert permissions and user-permission relationships
         for perm in data['permissions']:
             # Insert permission
-            perm_query = """
-                INSERT INTO Permissions (PageName, `create`, `read`, `update`, `delete`)
-                VALUES (%s, %s, %s, %s, %s)
+            # First check if permission exists
+            check_perm_query = """
+                SELECT ID FROM Permissions WHERE PageName = %s AND `create` = %s AND `read` = %s AND `update` = %s AND `delete` = %s
             """
-            cursor.execute(perm_query, (
+            cursor.execute(check_perm_query, (
                 perm['pageName'],
                 perm['create'],
                 perm['read'],
                 perm['update'],
                 perm['delete']
             ))
-            perm_id = cursor.lastrowid
+            existing_perm = cursor.fetchone()
+            if existing_perm:
+                perm_id = existing_perm[0]
+            else:
+                # Insert permission if not exists
+                insert_perm_query = """
+                    INSERT INTO Permissions (PageName, `create`, `read`, `update`, `delete`)
+                    VALUES (%s, %s, %s, %s, %s)
+                """
+                cursor.execute(insert_perm_query, (
+                    perm['pageName'],
+                    perm['create'],
+                    perm['read'],
+                    perm['update'],
+                    perm['delete']
+                ))
+                perm_id = cursor.lastrowid
+
             
             # Create user-permission relationship
             up_query = """
@@ -1174,6 +1239,7 @@ def submit_assembly():
         print("Error:", e)
         return jsonify({"error": str(e)}), 500
     finally:
+        update_excel()
         conn.close()
         
         
@@ -1215,6 +1281,14 @@ def all_specifications():
 @app.route('/assembly')
 def assembly():
     return render_template('assembly.html')
+
+
+from flask import send_file
+
+@app.route('/export_excel')
+def export_excel():
+    update_excel()
+    return send_file(EXCEL_FILE, as_attachment=True)
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5600, debug=True)
 

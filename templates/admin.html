@@ -147,59 +147,88 @@
         token = document.cookie.split('; ').find(row => row.startsWith('token='));
     });
 
-    function setupUserForm() {
+     function setupUserForm() {
         const userForm = document.getElementById('userForm');
-        userForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            submitUserForm();
-        });
+        if (userForm) {
+            userForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                submitUserForm();
+            });
+        } else {
+            console.warn("User form not found in DOM.");
+        }
     }
 
-    function submitUserForm() {
-        const userId = document.getElementById('userId').value;
-        const data = {
-            firstName: document.getElementById('firstName').value,
-            lastName: document.getElementById('lastName').value,
-            userName: document.getElementById('userName').value,
-            badge: document.getElementById('badge').value,
-            password: document.getElementById('password').value,
-            permissions: getSelectedPermissions()
-        };
 
-        const method = userId ? 'PUT' : 'POST';
-        const endpoint = userId ? `/admin/users/${userId}` : '/admin/users';
+function submitUserForm() {
+    const userId = document.getElementById('userId').value;
+    const userNameInput = document.getElementById('userName');
+    console.log("userNameInput element:", userNameInput);
 
-        fetch(`${url}${endpoint}`, {
-            method: method,
-            headers: { 'Content-Type': 'application/json',
-        
-        },
-            body: JSON.stringify(data)
-        })
-        .then(res => res.json())
-        .then(response => {
-            alert(response.message);
-            resetForm();
-            loadUsers();
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Operation failed');
-        });
+    if (!userNameInput) {
+        alert("⚠️ Username input not found in the DOM!");
+        return;
     }
+
+    // Safely get username value (from value or fallback to textContent)
+    const userNameValue = (userNameInput.value !== undefined && userNameInput.value !== null && userNameInput.value.trim() !== '')
+        ? userNameInput.value.trim()
+        : (userNameInput.textContent !== undefined && userNameInput.textContent !== null)
+            ? userNameInput.textContent.trim()
+            : '';
+
+    console.log("userNameInput value or textContent:", userNameValue);
+
+    if (!userNameValue) {
+        alert("Champ 'Username' manquant ou vide !");
+        return;
+    }
+
+    // Prepare data object for submission
+    const data = {
+        firstName: document.getElementById('firstName').value.trim(),
+        lastName: document.getElementById('lastName').value.trim(),
+        userName: userNameValue,
+        badge: document.getElementById('badge').value.trim(),
+        password: document.getElementById('password').value,
+        permissions: getSelectedPermissions()
+    };
+
+    console.log("Submitting user data: ", data);
+
+    const method = userId ? 'PUT' : 'POST';
+    const endpoint = userId ? `/admin/users/${userId}` : '/admin/users';
+
+    fetch(`${url}${endpoint}`, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(response => {
+        alert(response.message);
+        resetForm();
+        loadUsers();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Operation failed');
+    });
+}
+
 
     function getSelectedPermissions() {
         const permissions = [];
-        ['orders', 'specifications', 'production', 'monitoring'].forEach(page => {
+        ['Orders', 'Specifications', 'Production', 'Monitoring'].forEach(page => {
             const pagePerms = {
-                pageName: page,
+                pageName: page,  // Capitalized here to match your database
                 create: false,
                 read: false,
                 update: false,
                 delete: false
             };
 
-            document.querySelectorAll(`input[name="perm_${page}"]:checked`).forEach(checkbox => {
+            document.querySelectorAll(`input[name="perm_${page.toLowerCase()}"]:checked`).forEach(checkbox => {
                 pagePerms[checkbox.value] = true;
             });
 
@@ -207,6 +236,7 @@
         });
         return permissions;
     }
+
 
     function loadUsers() {
         fetch(`${url}/admin/users`)
