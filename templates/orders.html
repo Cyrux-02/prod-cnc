@@ -20,17 +20,10 @@
                      <label for="specs">Spec:</label>
                     <input type="text" id="specs" required>
 
-                    <label for="specification">Specification:</label>
-                    <select id="specification" required>
+                    <label for="specificationSelect">Specifications:</label>
+                    <select id="specificationSelect" required>
                         <option value="">Select Specification</option>
-                        <option value="1">Holder Head </option>
-                        <option value="2">Stop Tapping</option>
-                        <option value="3">Strain Relief</option>
-                        <option value="4">Codding </option>
-                        <option value="5">POM Part</option>
-                        <option value="6">Electrified Holder </option>
-                        <option value="7">Mechanical Holder </option>
-                        <option value="8">Wifi Holder </option>
+                        
                     </select>
 
                     <label for="plannedQuantity">Planned Quantity:</label>
@@ -68,7 +61,29 @@
 
     // Load orders when page loads
     document.addEventListener('DOMContentLoaded', function() {
+        const specificationSelect = document.getElementById('specificationSelect')
         loadOrders();
+        loadspecifications();
+        async function loadspecifications() {
+        try {
+            const response = await fetch(`${url}/all_specifications`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                const data = await response.json();
+                if (!data.data || !Array.isArray(data.data)) throw new Error('Invalid data format');
+
+                const uniqueOrders = data.data;
+                specificationSelect.innerHTML = '<option value="">Select specifications</option>';
+                uniqueOrders.forEach(spec => {
+                    const option = document.createElement('option');
+                    option.value = spec.id;
+                    option.textContent = spec.name; 
+                    specificationSelect.appendChild(option);
+                    });
+            } catch (error) {
+                console.error('Error loading specifications:', error);
+                }
+            }
     });
 
     function submitOrder() {
@@ -76,7 +91,6 @@
             orderNum: document.getElementById("orderNum").value,
             apnID: document.getElementById("apnID").value,
             specs: document.getElementById("specs").value,
-            specification: document.getElementById("specification").value,
             plannedQuantity: document.getElementById("plannedQuantity").value,
         };
 
