@@ -10,6 +10,9 @@ import mysql.connector
 import os
 import pandas as pd
 import openpyxl
+from dotenv import load_dotenv
+
+load_dotenv() 
 
 app = Flask(__name__)
 # Configure CORS to allow credentials and specific origins
@@ -25,15 +28,20 @@ login_attempts = defaultdict(list)  # Store login attempts with timestamps
 blocked_ips = defaultdict(float)  # Store blocked IPs with unblock time
 table_sheet_map = {"Orders_library":"Orders","production":"Production","assembly":"Assembly"}
 EXCEL_FILE = "./production.xlsx"
+DB_HOST = os.getenv('DB_HOST')
+DB_PORT = os.getenv('DB_PORT')
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+DB_NAME = os.getenv('DB_NAME')
 
 def get_db_connection():
     try:
         conn = mysql.connector.connect(
-            host="127.0.0.1",
-            port=3306,
-            user="root",
-            password="abdellahA2002",
-            database="cnc_data",
+            host=DB_HOST,
+            port=DB_PORT,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME,
         )
         return conn
     except Error as e:

@@ -151,7 +151,6 @@
     let productionChart = null;
 
     document.addEventListener('DOMContentLoaded', function() {
-        loadAssemblyData();
         loadChartData();
         //setInterval(() => {
            // loadChartData();
@@ -244,34 +243,6 @@
         const g = Math.floor(Math.random() * 255);
         const b = Math.floor(Math.random() * 255);
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-    }
-    async function loadAssemblyData() {
-        try {
-            const response = await fetch('/assembly_monitoring_data');
-            if (!response.ok) throw new Error('Network response was not ok');
-            const data = await response.json();
-
-            const tbody = document.getElementById('monitoringTableBody');
-            tbody.innerHTML = ''; // Clear existing rows
-
-            if (data.orders && data.orders.length > 0) {
-                data.orders.forEach(order => addNewAssemblyToTable(order));
-            } else {
-                // Optional: show "No data" row when empty
-                const noDataRow = document.createElement('tr');
-                noDataRow.innerHTML = `<td colspan="8" style="text-align:center;">No assembly data available.</td>`;
-                tbody.appendChild(noDataRow);
-            }
-        } catch (error) {
-            console.error('Error loading assembly data:', error);
-
-            // Optional: show error message on table
-            const tbody = document.getElementById('monitoringTableBody');
-            tbody.innerHTML = '';
-            const errorRow = document.createElement('tr');
-            errorRow.innerHTML = `<td colspan="8" style="color:red; text-align:center;">Failed to load assembly data.</td>`;
-            tbody.appendChild(errorRow);
-        }
     }
 
     function toggleSidebar() {
