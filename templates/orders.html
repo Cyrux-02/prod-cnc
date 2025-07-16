@@ -91,9 +91,11 @@
             orderNum: document.getElementById("orderNum").value,
             apnID: document.getElementById("apnID").value,
             specs: document.getElementById("specs").value,
+            specification : specificationSelecct.value,
             plannedQuantity: document.getElementById("plannedQuantity").value,
         };
 
+        console.log(data.orderNum ,data.apnID, data.specs , data.specification , data.plannedQuantity)
         if (!data.orderNum || !data.apnID ||!data.specs || !data.specification || !data.plannedQuantity) {
             alert("Please fill in all required fields");
             return;

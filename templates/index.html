@@ -160,83 +160,92 @@
     });
 
     async function loadChartData() {
-        try {
-            const viewType = document.getElementById('chartViewType').value;
-            const response = await fetch(`/assembly_chart_data?view=${viewType}`);
-            if (!response.ok) throw new Error('Network response was not ok');
-            const data = await response.json();
+    try {
+        const viewType = document.getElementById('chartViewType').value;
+        const response = await fetch(`/assembly_chart_data?view=${viewType}`);
 
-            if (productionChart) {
-                productionChart.destroy();
-            }
+        if (!response.ok) {
+            console.error('Statut HTTP :', response.status);
+            const errText = await response.text(); // Lire le corps de la réponse
+            console.error('Contenu de la réponse :', errText);
+            throw new Error(`Erreur serveur : ${response.status}`);
+        }
 
-            const ctx = document.getElementById('productionChart').getContext('2d');
-            const datasets = data.datasets.map(dataset => ({
-                ...dataset,
-                backgroundColor: getRandomColor(0.2),
-                borderColor: getRandomColor(1),
-                fill: true,
-                tension: 0.3,
-                pointRadius: 3
-            }));
+        const data = await response.json();
 
-            productionChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: data.labels,
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                            labels: {
-                                color: 'white'
-                            }
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false
+        if (productionChart) {
+            productionChart.destroy();
+        }
+
+        const ctx = document.getElementById('productionChart').getContext('2d');
+        const datasets = data.datasets.map(dataset => ({
+            ...dataset,
+            backgroundColor: getRandomColor(0.2),
+            borderColor: getRandomColor(1),
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3
+        }));
+
+        productionChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            color: 'white'
                         }
                     },
-                    scales: {
-                        x: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
                             display: true,
-                            title: {
-                                display: true,
-                                text: 'Date',
-                                color: 'white'
-                            },
-                            ticks: {
-                                color: 'white'
-                            },
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            }
+                            text: 'Date',
+                            color: 'white'
                         },
-                        y: {
+                        ticks: {
+                            color: 'white'
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
+                    },
+                    y: {
+                        display: true,
+                        title: {
                             display: true,
-                            title: {
-                                display: true,
-                                text: 'Quantity',
-                                color: 'white'
-                            },
-                            ticks: {
-                                color: 'white'
-                            },
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            }
+                            text: 'Quantity',
+                            color: 'white'
+                        },
+                        ticks: {
+                            color: 'white'
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
                         }
                     }
                 }
-            });
-        } catch (error) {
-            console.error('Error loading chart data:', error);
-        }
+            }
+        });
+
+    } catch (error) {
+        console.error('Erreur lors du chargement des données du graphique :', error);
     }
+}
+
 
     function getRandomColor(alpha) {
         const r = Math.floor(Math.random() * 255);

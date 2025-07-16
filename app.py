@@ -29,7 +29,7 @@ blocked_ips = defaultdict(float)  # Store blocked IPs with unblock time
 table_sheet_map = {"Orders_library":"Orders","production":"Production","assembly":"Assembly"}
 EXCEL_FILE = "./production.xlsx"
 DB_HOST = os.getenv('DB_HOST')
-DB_PORT = os.getenv('DB_PORT')
+DB_PORT = int(os.getenv('DB_PORT', '3306'))  # Default to port 3306 if not set
 DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_NAME = os.getenv('DB_NAME')
@@ -51,6 +51,7 @@ def get_db_connection():
 def update_excel():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+
     if not os.path.exists(EXCEL_FILE):
         with pd.ExcelWriter(EXCEL_FILE, engine="openpyxl") as writer:
             for table, sheet in table_sheet_map.items():
@@ -58,32 +59,30 @@ def update_excel():
                 rows = cursor.fetchall()
                 df = pd.DataFrame(rows)
                 df.to_excel(writer, sheet_name=sheet, index=False)
-        print(" Excel file created.")
+        print("✅ Excel file created.")
     else:
-        book = openpyxl.load_workbook(EXCEL_FILE)
-        writer = pd.ExcelWriter(EXCEL_FILE, engine="openpyxl", mode="a", if_sheet_exists="overlay")
-        writer.book = book
+        # No need to manually assign writer.book anymore!
+        with pd.ExcelWriter(EXCEL_FILE, engine="openpyxl", mode="a", if_sheet_exists="overlay") as writer:
+            book = writer.book  # Optional: can access it, but don’t assign to it
 
-        for table, sheet in table_sheet_map.items():
-            if sheet in book.sheetnames:
-                existing_df = pd.read_excel(EXCEL_FILE, sheet_name=sheet)
-                last_id = existing_df["id"].max() if "id" in existing_df.columns else 0
-            else:
-                existing_df = pd.DataFrame()
-                last_id = 0
+            for table, sheet in table_sheet_map.items():
+                if sheet in book.sheetnames:
+                    existing_df = pd.read_excel(EXCEL_FILE, sheet_name=sheet)
+                    last_id = existing_df["id"].max() if "id" in existing_df.columns else 0
+                else:
+                    existing_df = pd.DataFrame()
+                    last_id = 0
 
-            cursor.execute(f"SELECT * FROM {table} WHERE id > %s", (last_id,))
-            new_rows = cursor.fetchall()
-            new_df = pd.DataFrame(new_rows)
+                cursor.execute(f"SELECT * FROM {table} WHERE id > %s", (last_id,))
+                new_rows = cursor.fetchall()
+                new_df = pd.DataFrame(new_rows)
 
-            if not new_df.empty:
-                combined_df = pd.concat([existing_df, new_df], ignore_index=True)
-                combined_df.to_excel(writer, sheet_name=sheet, index=False)
-                print(f" Sheet '{sheet}' updated with {len(new_df)} new rows.")
-            else:
-                print(f"ℹ No new data for sheet '{sheet}'.")
-
-        writer.close()
+                if not new_df.empty:
+                    combined_df = pd.concat([existing_df, new_df], ignore_index=True)
+                    combined_df.to_excel(writer, sheet_name=sheet, index=False)
+                    print(f"✅ Sheet '{sheet}' updated with {len(new_df)} new rows.")
+                else:
+                    print(f"ℹ No new data for sheet '{sheet}'.")
 
     cursor.close()
     conn.close()
